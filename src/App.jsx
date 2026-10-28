@@ -24,8 +24,8 @@ const BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, "");
 const GAMES_PATH = `${BASE_PATH}/games`;
 
 const CONTACT_LINKS = {
-  email: "mailto:your.email@example.com",
-  whatsapp: "https://wa.me/yourphonenumber",
+  email: "mailto:tk042333@gmail.com",
+  whatsapp: "https://wa.me/919768717870",
 };
 
 const projects = [
@@ -571,7 +571,7 @@ function Contact() {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[10px] font-semibold uppercase tracking-[0.13em] text-paper/55">Email</span>
-                <span className="mt-1 block truncate text-sm font-medium">your.email@example.com</span>
+                <span className="mt-1 block truncate text-sm font-medium">tk042333@gmail.com</span>
               </span>
               <ArrowUpRight size={16} className="shrink-0 text-paper/50 transition-colors group-hover:text-[#b5d943]" />
             </a>
@@ -586,7 +586,7 @@ function Contact() {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[10px] font-semibold uppercase tracking-[0.13em] text-paper/55">WhatsApp</span>
-                <span className="mt-1 block truncate text-sm font-medium">Add your number</span>
+                <span className="mt-1 block truncate text-sm font-medium">9768717870</span>
               </span>
               <ArrowUpRight size={16} className="shrink-0 text-paper/50 transition-colors group-hover:text-[#b5d943]" />
             </a>
