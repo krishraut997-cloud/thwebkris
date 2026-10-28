@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Krish Raut — Frontend Developer</title>
+    <script>
+      const pathParts = window.location.pathname.split("/").filter(Boolean);
+      const basePath = `/${pathParts.shift() || ""}`;
+      const route = `/${pathParts.join("/")}${window.location.search}${window.location.hash}`;
+      const query = new URLSearchParams({ route });
+      window.location.replace(`${basePath}/?${query}`);
+    </script>
+  </head>
+  <body></body>
+</html>

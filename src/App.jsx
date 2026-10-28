@@ -605,6 +605,18 @@ function Contact() {
 }
 
 export default function App() {
+  const requestedRoute = new URLSearchParams(window.location.search).get("route");
+  if (requestedRoute) {
+    const routeUrl = new URL(requestedRoute, window.location.origin);
+    if (routeUrl.origin === window.location.origin && routeUrl.pathname.startsWith("/")) {
+      window.history.replaceState(
+        null,
+        "",
+        `${BASE_PATH}${routeUrl.pathname}${routeUrl.search}${routeUrl.hash}`,
+      );
+    }
+  }
+
   const isGamesPage = window.location.pathname.replace(/\/+$/, "") === GAMES_PATH;
 
   useEffect(() => {
