@@ -20,6 +20,8 @@ import { ProjectDemo } from "./ProjectDemos.jsx";
 import AdSenseSlot from "./AdSenseSlot.jsx";
 
 const GamesPage = lazy(() => import("./GamesPage.jsx"));
+const BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, "");
+const GAMES_PATH = `${BASE_PATH}/games`;
 
 const CONTACT_LINKS = {
   email: "mailto:your.email@example.com",
@@ -116,7 +118,7 @@ function Header() {
 
         <div className="hidden items-center gap-9 md:flex">
           <a className="nav-link" href="#work">Work</a>
-          <a className="nav-link" href="/games">Play</a>
+          <a className="nav-link" href={GAMES_PATH}>Play</a>
           <a className="nav-link" href="#python-projects">Python</a>
           <a className="nav-link" href="#skills">Skills</a>
           <a className="nav-link" href="#about">About</a>
@@ -144,7 +146,7 @@ function Header() {
       {menuOpen && (
         <div className="absolute left-0 right-0 top-full border-y border-ink/10 bg-paper px-6 py-7 shadow-lg md:hidden">
           <div className="flex flex-col gap-5">
-            {[["Work", "#work"], ["Play games", "/games"], ["Python", "#python-projects"], ["Skills", "#skills"], ["About", "#about"], ["Contact", "#contact"]].map(
+            {[["Work", "#work"], ["Play games", GAMES_PATH], ["Python", "#python-projects"], ["Skills", "#skills"], ["About", "#about"], ["Contact", "#contact"]].map(
               ([label, href]) => (
                 <a
                   key={label}
@@ -603,7 +605,7 @@ function Contact() {
 }
 
 export default function App() {
-  const isGamesPage = window.location.pathname.replace(/\/+$/, "") === "/games";
+  const isGamesPage = window.location.pathname.replace(/\/+$/, "") === GAMES_PATH;
 
   useEffect(() => {
     if (isGamesPage) {

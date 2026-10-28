@@ -33,6 +33,7 @@ import {
 import AdSenseSlot from "./AdSenseSlot.jsx";
 
 const RANK_REFRESH_INTERVAL = 2 * 60 * 60 * 1000;
+const HOME_PATH = import.meta.env.BASE_URL;
 const GameScoreContext = createContext(null);
 
 function getRankedPlayerIds(players) {
@@ -1181,10 +1182,10 @@ export default function GamesPage() {
     <div className="min-h-screen bg-paper text-ink">
       <header className="border-b border-ink/10">
         <nav className="mx-auto flex max-w-[1100px] items-center justify-between px-5 py-5 sm:px-8">
-          <a href="/" className="font-display text-sm font-extrabold tracking-[-0.06em]">
+          <a href={HOME_PATH} className="font-display text-sm font-extrabold tracking-[-0.06em]">
             KR<span className="text-[#829f35]">.</span>
           </a>
-          <a href="/" className="inline-flex items-center gap-2 text-xs font-semibold text-muted transition hover:text-ink">
+          <a href={HOME_PATH} className="inline-flex items-center gap-2 text-xs font-semibold text-muted transition hover:text-ink">
             <ArrowLeft size={14} /> Back to portfolio
           </a>
         </nav>
@@ -1263,7 +1264,7 @@ export default function GamesPage() {
 
         <footer className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-ink/10 pt-5 text-[10px] text-muted">
           <span>Made for fun by Krish Raut.</span>
-          <a href="/" className="font-semibold transition hover:text-ink">Back to portfolio ↗</a>
+          <a href={HOME_PATH} className="font-semibold transition hover:text-ink">Back to portfolio ↗</a>
         </footer>
       </main>
     </div>
