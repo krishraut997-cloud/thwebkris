@@ -30,6 +30,7 @@ import {
   signInWithGoogle,
   signOutPlayer,
 } from "./firebase";
+import { getContextPuzzle } from "./contextModel.js";
 import AdSenseSlot from "./AdSenseSlot.jsx";
 
 const RANK_REFRESH_INTERVAL = 2 * 60 * 60 * 1000;
@@ -241,13 +242,6 @@ const gameOptions = [
 ];
 
 const memoryIcons = [Zap, Star, Leaf, Sun, Sparkles, Gamepad2];
-const contextPuzzles = [
-  { answer: "ocean", clues: ["sea", "water", "wave", "beach", "tide", "coast", "fish", "island", "river", "lake", "boat", "sail", "shore", "marine", "blue", "whale", "current", "sand", "coral", "deep", "salt", "surf", "harbor", "ship", "swim", "seashell", "bay", "reef", "sailing", "seagull"] },
-  { answer: "garden", clues: ["plant", "flower", "tree", "seed", "soil", "grass", "leaf", "bloom", "rose", "green", "grow", "root", "vegetable", "yard", "park", "tulip", "sunflower", "watering", "pot", "herb", "botany", "dirt", "lawn", "orchard", "bee", "shovel", "spring", "nature", "petal", "planting"] },
-  { answer: "music", clues: ["song", "sound", "melody", "singer", "band", "guitar", "piano", "rhythm", "concert", "note", "instrument", "dance", "album", "radio", "voice", "drum", "jazz", "rock", "listen", "tune", "orchestra", "lyrics", "record", "microphone", "keyboard", "bass", "beat", "choir", "stage", "harmony"] },
-  { answer: "coffee", clues: ["tea", "drink", "cafe", "cup", "espresso", "bean", "caffeine", "brew", "morning", "latte", "mug", "milk", "roast", "barista", "hot", "breakfast", "sugar", "chocolate", "cream", "cappuccino", "kettle", "aroma", "bitter", "mocha", "water", "cocoa", "restaurant", "break", "sip", "filter"] },
-  { answer: "space", clues: ["universe", "planet", "star", "moon", "galaxy", "astronaut", "rocket", "earth", "mars", "sky", "orbit", "solar", "telescope", "cosmos", "satellite", "light", "comet", "gravity", "science", "spaceship", "meteor", "jupiter", "alien", "vacuum", "launch", "astronomy", "night", "sun", "nebula", "exploration"] },
-];
 const PYODIDE_SCRIPT_URL = "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js";
 const PYODIDE_INDEX_URL = "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/";
 let pythonRuntimePromise;
@@ -694,41 +688,48 @@ function TicTacToe() {
   );
 }
 
-function getRandomContextPuzzle(previousAnswer) {
-  const options = contextPuzzles.filter((puzzle) => puzzle.answer !== previousAnswer);
-  return options[Math.floor(Math.random() * options.length)];
-}
-
 function ContextGuessGame() {
   const { recordGame } = useGameScore();
-  const [puzzle, setPuzzle] = useState(() => getRandomContextPuzzle());
+  const [puzzle, setPuzzle] = useState(null);
+  const [rankByWord, setRankByWord] = useState(null);
   const [guess, setGuess] = useState("");
   const [guesses, setGuesses] = useState([]);
   const [message, setMessage] = useState("");
   const [won, setWon] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [modelError, setModelError] = useState("");
 
-  const rankByWord = new Map(
-    puzzle.clues
-      .filter((word) => word !== puzzle.answer)
-      .map((word, index) => {
-        const rank =
-          index < 9
-            ? index + 2
-            : index < 19
-              ? 11 + (index - 9) * 9
-              : index < 24
-                ? 101 + (index - 19) * 75
-                : 501 + (index - 24) * 175;
-        return [word, rank];
-      }),
-  );
+  useEffect(() => {
+    let active = true;
+
+    getContextPuzzle()
+      .then((nextPuzzle) => {
+        if (!active) return;
+        setPuzzle(nextPuzzle.answer);
+        setRankByWord(nextPuzzle.rankByWord);
+        setLoading(false);
+      })
+      .catch((error) => {
+        if (!active) return;
+        setModelError(error.message || "The semantic vocabulary could not be loaded.");
+        setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const bestRank = guesses.reduce(
     (best, item) => item.rank <= 1500 && item.rank < best ? item.rank : best,
     Infinity,
   );
+  const hasRankedGuesses = bestRank < Infinity;
+  const hasUnrankedGuesses = guesses.some((item) => item.rank > 1500);
 
   function submitGuess(event) {
     event.preventDefault();
+    if (!puzzle || !rankByWord || loading) return;
     const word = guess.trim().toLowerCase();
 
     if (!/^[a-z]+$/.test(word)) {
@@ -741,9 +742,9 @@ function ContextGuessGame() {
       return;
     }
 
-    if (word === puzzle.answer) {
+    if (word === puzzle) {
       setGuesses((current) => [...current, { word, rank: 1 }]);
-      setMessage(`You found it — “${puzzle.answer}” is rank #1!`);
+      setMessage(`You found it — “${puzzle}” is rank #1!`);
       setWon(true);
       recordGame("Context Guess", Math.max(10, 100 - guesses.length * 2), true);
       setGuess("");
@@ -754,7 +755,7 @@ function ContextGuessGame() {
     setGuesses((current) => [...current, { word, rank }]);
     setMessage(
       rank > 1500
-        ? `“${word}” is outside this demo’s word map. Try a related idea.`
+        ? `“${word}” is outside this game's vocabulary and is ranked #1501+. Try a related word.`
         : rank <= 10
           ? `Extremely close! “${word}” is rank #${rank}.`
           : rank <= 100
@@ -766,12 +767,23 @@ function ContextGuessGame() {
     setGuess("");
   }
 
-  function startNewPuzzle() {
-    setPuzzle((current) => getRandomContextPuzzle(current.answer));
+  async function startNewPuzzle() {
+    setLoading(true);
+    setModelError("");
     setGuess("");
     setGuesses([]);
     setMessage("");
     setWon(false);
+
+    try {
+      const nextPuzzle = await getContextPuzzle(puzzle);
+      setPuzzle(nextPuzzle.answer);
+      setRankByWord(nextPuzzle.rankByWord);
+    } catch (error) {
+      setModelError(error.message || "A new semantic puzzle could not be loaded.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -792,16 +804,16 @@ function ContextGuessGame() {
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.13em] text-muted">Mystery word</p>
             <p className="mt-1 font-display text-lg font-semibold tracking-[-0.04em]">
-              {won ? puzzle.answer : "?????"}
+              {won ? puzzle : "?????"}
             </p>
           </div>
           <div className="flex items-center gap-2">
             <span className="rounded-full bg-[#eaeae2] px-3 py-2 text-xs">
               Guesses <strong>{guesses.length}</strong>
             </span>
-            {bestRank < Infinity && !won && (
+            {(hasRankedGuesses || hasUnrankedGuesses) && !won && (
               <span className="rounded-full bg-[#eef4db] px-3 py-2 text-xs font-semibold text-[#5d7326]">
-                Best {bestRank > 1500 ? "#1501+" : `#${bestRank}`}
+                Best {hasRankedGuesses ? `#${bestRank}` : "#1501+"}
               </span>
             )}
           </div>
@@ -818,22 +830,22 @@ function ContextGuessGame() {
             value={guess}
             onChange={(event) => setGuess(event.target.value)}
             placeholder="Type any word..."
-            disabled={won}
+            disabled={won || loading || Boolean(modelError)}
             className="min-w-0 flex-1 rounded-full border border-ink/15 px-5 py-3 text-sm outline-none transition focus:border-[#829f35] disabled:bg-[#f8f8f5]"
           />
-          <button type="submit" disabled={won} className="rounded-full bg-ink px-6 py-3 text-xs font-semibold text-white transition hover:bg-[#4a4b41] disabled:cursor-not-allowed disabled:opacity-50">
+          <button type="submit" disabled={won || loading || Boolean(modelError)} className="rounded-full bg-ink px-6 py-3 text-xs font-semibold text-white transition hover:bg-[#4a4b41] disabled:cursor-not-allowed disabled:opacity-50">
             Guess word
           </button>
         </form>
 
-        {message && (
+        {(loading || modelError || message) && (
           <p role="status" aria-live="polite" className={`mt-4 rounded-lg px-4 py-3 text-sm font-medium ${won ? "bg-[#eef4db] text-[#5d7326]" : "bg-[#f8f8f5] text-ink"}`}>
-            {message}
+            {modelError || message || "Loading the semantic vocabulary…"}
           </p>
         )}
 
         {won && (
-          <button type="button" onClick={startNewPuzzle} className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#829f35] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#71862f]">
+          <button type="button" onClick={startNewPuzzle} disabled={loading} className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#829f35] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#71862f] disabled:cursor-wait disabled:opacity-60">
             <RotateCcw size={14} /> Play a new word
           </button>
         )}
@@ -867,7 +879,7 @@ function ContextGuessGame() {
       <details className="mt-4 rounded-lg border border-ink/10 bg-white/70">
         <summary className="cursor-pointer px-4 py-3 text-xs font-semibold">How ranking works</summary>
         <p className="border-t border-ink/10 px-4 py-3 text-[11px] leading-5 text-muted">
-          This portfolio demo uses a small, curated word-association list and sample ranks. It is an original prototype, not the full Contexto vocabulary or its trained semantic model. Unlisted words are marked #1501+.
+          Guesses are ranked by cosine similarity to the mystery word using a pretrained MiniLM semantic model and this game's 1,500-word English vocabulary. Words outside the vocabulary show #1501+. This is an original implementation and does not use Contexto's proprietary word list or model.
         </p>
       </details>
     </div>

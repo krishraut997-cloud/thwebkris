@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate:context-data": "node scripts/generate-context-data.js"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",
@@ -17,6 +18,7 @@
     "vite": "^6.0.5"
   },
   "devDependencies": {
+    "@huggingface/transformers": "^4.3.2",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17"
