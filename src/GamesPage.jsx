@@ -1221,7 +1221,7 @@ export default function GamesPage() {
                   <span className="text-[#829f35]">Think a lot.</span>
                 </h1>
                 <p className="mt-5 max-w-lg text-sm leading-6 text-muted">
-                  A small collection of simple browser games. No downloads, no sign-up—just pick one and play.
+                  A small collection of browser games you can play without an account. Sign in only if you want a leaderboard profile.
                 </p>
               </div>
               <span className="rounded-full bg-[#eaeae2] px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted">Built with React</span>
@@ -1280,6 +1280,12 @@ export default function GamesPage() {
 
         <footer className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-ink/10 pt-5 text-[10px] text-muted">
           <span>Made for fun by Krish Raut.</span>
+          <nav aria-label="Site information" className="flex flex-wrap gap-x-4 gap-y-2">
+            <a href={`${HOME_PATH}about.html`} className="transition hover:text-ink">About</a>
+            <a href={`${HOME_PATH}contact.html`} className="transition hover:text-ink">Contact</a>
+            <a href={`${HOME_PATH}privacy-policy.html`} className="transition hover:text-ink">Privacy</a>
+            <a href={`${HOME_PATH}terms.html`} className="transition hover:text-ink">Terms</a>
+          </nav>
           <a href={HOME_PATH} className="font-semibold transition hover:text-ink">Back to portfolio ↗</a>
         </footer>
       </main>

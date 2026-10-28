@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://portfolio-seven-green-mocmyyk3ff.vercel.app/sitemap.xml

@@ -596,6 +596,12 @@ function Contact() {
           <a href="#home" className="font-display text-sm font-extrabold tracking-[-0.06em] text-paper">
             KR<span className="text-[#b5d943]">.</span>
           </a>
+          <nav aria-label="Site information" className="flex flex-wrap gap-x-4 gap-y-2">
+            <a href="./about.html" className="transition-colors hover:text-paper">About</a>
+            <a href="./contact.html" className="transition-colors hover:text-paper">Contact</a>
+            <a href="./privacy-policy.html" className="transition-colors hover:text-paper">Privacy</a>
+            <a href="./terms.html" className="transition-colors hover:text-paper">Terms</a>
+          </nav>
           <p>© {new Date().getFullYear()} Krish Raut. Built with React & Tailwind CSS.</p>
           <a href="#home" className="transition-colors hover:text-paper">Back to top ↑</a>
         </div>
