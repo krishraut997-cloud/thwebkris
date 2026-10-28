@@ -2,8 +2,8 @@ export const CONTEXT_VOCABULARY_SIZE = 10000;
 export const CONTEXT_UNLISTED_RANK = CONTEXT_VOCABULARY_SIZE + 1;
 
 const MODEL_FILES = {
-  vocabulary: `${import.meta.env.BASE_URL}context-vocabulary.json`,
-  vectors: `${import.meta.env.BASE_URL}context-vectors.bin`,
+  vocabulary: `${import.meta.env.BASE_URL}context-vocabulary-10000-v2.json`,
+  vectors: `${import.meta.env.BASE_URL}context-vectors-10000-v2.bin`,
 };
 
 let modelPromise;
@@ -22,7 +22,7 @@ async function loadModel() {
   const vectors = new Int8Array(await vectorsResponse.arrayBuffer());
 
   if (
-    vocabulary.schemaVersion !== 1 ||
+    vocabulary.schemaVersion !== 2 ||
     vocabulary.dimension !== 384 ||
     !Array.isArray(vocabulary.words) ||
     vocabulary.words.length !== CONTEXT_VOCABULARY_SIZE ||

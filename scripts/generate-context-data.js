@@ -109,15 +109,15 @@ async function main() {
   await mkdir(publicDir, { recursive: true });
   await Promise.all([
     writeFile(
-      path.join(publicDir, "context-vocabulary.json"),
+      path.join(publicDir, "context-vocabulary-10000-v2.json"),
       `${JSON.stringify({
-        schemaVersion: 1,
+        schemaVersion: 2,
         model: MODEL_ID,
         dimension: DIMENSION,
         words,
       })}\n`,
     ),
-    writeFile(path.join(publicDir, "context-vectors.bin"), vectors),
+    writeFile(path.join(publicDir, "context-vectors-10000-v2.bin"), vectors),
   ]);
 }
 
