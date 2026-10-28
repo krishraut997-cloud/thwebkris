@@ -7,7 +7,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const WORD_LIST_URL =
   "https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/en/en_50k.txt";
 const MODEL_ID = "Xenova/all-MiniLM-L6-v2";
-const WORD_COUNT = 1500;
+const WORD_COUNT = 10000;
 const DIMENSION = 384;
 const BATCH_SIZE = 32;
 const seedWords = `

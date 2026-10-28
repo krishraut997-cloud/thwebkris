@@ -30,7 +30,11 @@ import {
   signInWithGoogle,
   signOutPlayer,
 } from "./firebase";
-import { getContextPuzzle } from "./contextModel.js";
+import {
+  CONTEXT_UNLISTED_RANK,
+  CONTEXT_VOCABULARY_SIZE,
+  getContextPuzzle,
+} from "./contextModel.js";
 import AdSenseSlot from "./AdSenseSlot.jsx";
 
 const RANK_REFRESH_INTERVAL = 2 * 60 * 60 * 1000;
@@ -721,11 +725,11 @@ function ContextGuessGame() {
   }, []);
 
   const bestRank = guesses.reduce(
-    (best, item) => item.rank <= 1500 && item.rank < best ? item.rank : best,
+    (best, item) => item.rank < CONTEXT_UNLISTED_RANK && item.rank < best ? item.rank : best,
     Infinity,
   );
   const hasRankedGuesses = bestRank < Infinity;
-  const hasUnrankedGuesses = guesses.some((item) => item.rank > 1500);
+  const hasUnrankedGuesses = guesses.some((item) => item.rank >= CONTEXT_UNLISTED_RANK);
 
   function submitGuess(event) {
     event.preventDefault();
@@ -751,11 +755,11 @@ function ContextGuessGame() {
       return;
     }
 
-    const rank = rankByWord.get(word) ?? 1501;
+    const rank = rankByWord.get(word) ?? CONTEXT_UNLISTED_RANK;
     setGuesses((current) => [...current, { word, rank }]);
     setMessage(
-      rank > 1500
-        ? `“${word}” is outside this game's vocabulary and is ranked #1501+. Try a related word.`
+      rank >= CONTEXT_UNLISTED_RANK
+        ? `“${word}” is outside this game's ${CONTEXT_VOCABULARY_SIZE.toLocaleString()}-word vocabulary and is ranked #${CONTEXT_UNLISTED_RANK.toLocaleString()}+. Try a related word.`
         : rank <= 10
           ? `Extremely close! “${word}” is rank #${rank}.`
           : rank <= 100
@@ -813,7 +817,7 @@ function ContextGuessGame() {
             </span>
             {(hasRankedGuesses || hasUnrankedGuesses) && !won && (
               <span className="rounded-full bg-[#eef4db] px-3 py-2 text-xs font-semibold text-[#5d7326]">
-                Best {hasRankedGuesses ? `#${bestRank}` : "#1501+"}
+                Best {hasRankedGuesses ? `#${bestRank}` : `#${CONTEXT_UNLISTED_RANK.toLocaleString()}+`}
               </span>
             )}
           </div>
@@ -861,7 +865,7 @@ function ContextGuessGame() {
                 <li key={word} className={`flex items-center justify-between gap-3 rounded-lg px-3.5 py-2.5 ${rank === 1 ? "bg-[#eef4db]" : rank <= 10 ? "bg-[#f0f3e8]" : "bg-[#f8f8f5]"}`}>
                   <span className="text-sm font-medium capitalize">{word}</span>
                   <span className={`text-xs font-semibold ${rank <= 10 ? "text-[#5d7326]" : "text-muted"}`}>
-                    {rank > 1500 ? "#1501+" : `#${rank}`}
+                    {rank >= CONTEXT_UNLISTED_RANK ? `#${CONTEXT_UNLISTED_RANK.toLocaleString()}+` : `#${rank}`}
                   </span>
                 </li>
               ))}
@@ -879,7 +883,7 @@ function ContextGuessGame() {
       <details className="mt-4 rounded-lg border border-ink/10 bg-white/70">
         <summary className="cursor-pointer px-4 py-3 text-xs font-semibold">How ranking works</summary>
         <p className="border-t border-ink/10 px-4 py-3 text-[11px] leading-5 text-muted">
-          Guesses are ranked by cosine similarity to the mystery word using a pretrained MiniLM semantic model and this game's 1,500-word English vocabulary. Words outside the vocabulary show #1501+. This is an original implementation and does not use Contexto's proprietary word list or model.
+          Guesses are ranked by cosine similarity to the mystery word using a pretrained MiniLM semantic model and this game's {CONTEXT_VOCABULARY_SIZE.toLocaleString()}-word English vocabulary. Words outside the vocabulary show #{CONTEXT_UNLISTED_RANK.toLocaleString()}+. This is an original implementation and does not use Contexto's proprietary word list or model.
         </p>
       </details>
     </div>
