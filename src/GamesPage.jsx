@@ -126,7 +126,7 @@ function GameDashboard({
           <p className="mt-1 text-[11px] text-muted">Sign in with the same Google account on each device to keep your profile and score.</p>
         </div>
         <span className="rounded-full bg-[#eaeae2] px-3 py-2 text-[10px] font-medium text-muted">
-          Next update in {remainingHours}h {remainingMinutes}m
+          Scheduled refresh in {remainingHours}h {remainingMinutes}m
         </span>
       </div>
 
@@ -227,7 +227,7 @@ function GameDashboard({
           <li>Context Guess: max(10, 100 − 2 × guesses) when you find the word.</li>
         </ul>
       </details>
-      <p className="mt-2 text-[10px] text-muted">The signed-in player receives points. Score totals never reset.</p>
+      <p className="mt-2 text-[10px] text-muted">Ranks reorder when leaderboard records change and refresh every two hours. Score totals never reset.</p>
     </section>
   );
 }
@@ -1149,17 +1149,11 @@ export default function GamesPage() {
         setGameData((current) => ({ ...current, players, loading: false, error: "" }));
         setRankRefresh((current) => {
           const now = Date.now();
-          if (firstSnapshot || now - current.rankedAt >= RANK_REFRESH_INTERVAL) {
-            firstSnapshot = false;
-            return { rankedIds: getRankedPlayerIds(players), rankedAt: now };
-          }
+          const refreshDue = firstSnapshot || now - current.rankedAt >= RANK_REFRESH_INTERVAL;
           firstSnapshot = false;
           return {
-            ...current,
-            rankedIds: [
-              ...current.rankedIds.filter((id) => players[id]),
-              ...Object.keys(players).filter((id) => !current.rankedIds.includes(id)),
-            ],
+            rankedIds: getRankedPlayerIds(players),
+            rankedAt: refreshDue ? now : current.rankedAt,
           };
         });
       },
