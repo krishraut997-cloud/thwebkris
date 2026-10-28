@@ -16,9 +16,17 @@ player name can only be claimed once.
 - Local web configuration: stored in ignored `.env.local`
 
 Use `http://localhost` for local development. Firebase Authentication checks
-authorized domains; add the deployed website's domain under **Authentication →
-Settings → Authorized domains** before using Google sign-in on the live site.
-Never put a Firebase Admin SDK private key in the frontend.
+authorized domains; the production domain
+`portfolio-seven-green-mocmyyk3ff.vercel.app` is authorized under
+**Authentication → Settings → Authorized domains**. Add any new production
+domain there before using Google sign-in on it.
+
+Vercel builds also need `VITE_FIREBASE_API_KEY`,
+`VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, and
+`VITE_FIREBASE_APP_ID` set for the Production environment. After changing
+these settings, redeploy so Vite includes them in the client build. Firebase
+web app configuration is public client configuration; never put a Firebase
+Admin SDK private key in a `VITE_` variable or frontend bundle.
 
 ## Notes
 
