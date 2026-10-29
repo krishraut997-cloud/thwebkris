@@ -7,6 +7,7 @@ import {
   Brain,
   Check,
   Circle,
+  Clock3,
   Gamepad2,
   Hash,
   Leaf,
@@ -27,6 +28,7 @@ import {
   isFirebaseConfigured,
   listenToAuth,
   listenToGameDashboard,
+  listenToPlayerRecords,
   signInWithGoogle,
   signOutPlayer,
   startVerifiedGame,
@@ -85,6 +87,7 @@ function getSignInErrorMessage(error) {
 
 function GameDashboard({
   gameData,
+  privateRecords,
   authUser,
   profile,
   authLoading,
@@ -146,6 +149,40 @@ function GameDashboard({
         <p role="status" className="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
           Verified solo wins add 10 points, losses subtract 10, and draws add 0. Local two-player Tic-tac-toe is not ranked.
         </p>
+      )}
+
+      {profile && (
+        <section className="mt-5 rounded-lg border border-ink/10 bg-[#f8f8f5] p-3 sm:p-4" aria-labelledby="private-game-history-title">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h3 id="private-game-history-title" className="text-sm font-semibold">Your recent games</h3>
+              <p className="mt-1 text-[10px] text-muted">Private to your signed-in account</p>
+            </div>
+            <Clock3 size={17} className="text-[#829f35]" />
+          </div>
+          {privateRecords.loading ? (
+            <p className="mt-3 text-[11px] text-muted">Loading your game history…</p>
+          ) : privateRecords.error ? (
+            <p role="alert" className="mt-3 text-[11px] leading-5 text-red-700">{privateRecords.error}</p>
+          ) : privateRecords.records.length ? (
+            <ol className="mt-3 divide-y divide-ink/5">
+              {privateRecords.records.map((record) => {
+                const title = gameOptions.find(({ id }) => id === record.game)?.title || record.game;
+                const points = record.pointsDelta > 0 ? `+${record.pointsDelta}` : record.pointsDelta;
+                return (
+                  <li key={`${record.game}-${record.createdAt}`} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-3 text-[11px]">
+                    <span className="font-medium">{title} · {record.outcome}</span>
+                    <span className="text-muted">
+                      {points} pts · {new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(record.createdAt))}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          ) : (
+            <p className="mt-3 text-[11px] text-muted">Completed signed-in games will appear here.</p>
+          )}
+        </section>
       )}
 
       <div className="mt-5">
@@ -1351,6 +1388,11 @@ export default function GamesPage() {
     loading: true,
     error: "",
   });
+  const [privateRecords, setPrivateRecords] = useState({
+    records: [],
+    loading: false,
+    error: "",
+  });
   const [authUser, setAuthUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [profileSaving, setProfileSaving] = useState(false);
@@ -1430,6 +1472,24 @@ export default function GamesPage() {
   }, [currentGame]);
 
   const profile = authUser ? gameData.players[authUser.uid] : null;
+
+  useEffect(() => {
+    if (currentGame || !authUser || !profile) {
+      setPrivateRecords({ records: [], loading: false, error: "" });
+      return undefined;
+    }
+
+    setPrivateRecords((current) => ({ ...current, loading: true, error: "" }));
+    return listenToPlayerRecords(
+      authUser,
+      (records) => setPrivateRecords({ records, loading: false, error: "" }),
+      (error) => setPrivateRecords((current) => ({
+        ...current,
+        loading: false,
+        error: `Could not load your private game history: ${error.message}`,
+      })),
+    );
+  }, [authUser, currentGame, profile?.name]);
 
   async function createProfile(name) {
     if (!authUser) throw new Error("Sign in with Google before creating a player profile.");
@@ -1540,6 +1600,7 @@ export default function GamesPage() {
           {!currentGame && (
             <GameDashboard
               gameData={gameData}
+              privateRecords={privateRecords}
               authUser={authUser}
               profile={profile}
               authLoading={authLoading}

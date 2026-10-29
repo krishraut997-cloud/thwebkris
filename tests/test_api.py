@@ -109,6 +109,51 @@ class GameApiTests(unittest.TestCase):
         removed_vercel_activity = self.client.get("/api?view=activity")
         self.assertEqual(removed_vercel_activity.status_code, 404)
 
+    def test_private_game_history_only_returns_authenticated_players_records(self):
+        self.create_player("player-1", "first player")
+        self.create_player("player-2", "second player")
+        now = datetime.now(timezone.utc)
+        records = [
+            ("first-old", "player-1", "first player", "memory", "win", 10, 10, (now - timedelta(minutes=5)).isoformat()),
+            ("first-new", "player-1", "first player", "number-guess", "loss", -10, 0, now.isoformat()),
+            ("second-only", "player-2", "second player", "tic-tac-toe", "draw", 0, 0, now.isoformat()),
+        ]
+        connection = sqlite3.connect(self.database_path)
+        try:
+            with connection:
+                connection.executemany(
+                    """
+                    INSERT INTO game_records
+                        (id, player_id, player_name, game, outcome,
+                         points_delta, points_after, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    records,
+                )
+        finally:
+            connection.close()
+
+        with patch.object(index, "require_uid", return_value="player-1"):
+            response = self.client.get("/api/me/records")
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(
+            [record["game"] for record in response.json()["records"]],
+            ["number-guess", "memory"],
+        )
+        self.assertEqual(response.json()["records"][0]["outcome"], "loss")
+        self.assertEqual(response.json()["records"][0]["pointsDelta"], -10)
+
+        with patch.object(index, "require_uid", return_value="player-2"):
+            rewritten_response = self.client.get("/api?view=my-records")
+        self.assertEqual(rewritten_response.status_code, 200, rewritten_response.text)
+        self.assertEqual(
+            [record["game"] for record in rewritten_response.json()["records"]],
+            ["tic-tac-toe"],
+        )
+
+        unauthorized = self.client.get("/api/me/records")
+        self.assertEqual(unauthorized.status_code, 401)
+
     def test_dashboard_query_route_is_available_through_api_root(self):
         self.create_player("player-1", "first player")
         response = self.client.get("/api?view=dashboard")

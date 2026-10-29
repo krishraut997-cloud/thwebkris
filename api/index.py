@@ -137,6 +137,8 @@ def health_check(request: Request):
     view = request.query_params.get("view")
     if view == "dashboard":
         return dashboard()
+    if view == "my-records":
+        return player_records(request)
     if view == "activity":
         raise HTTPException(status_code=404, detail="Recent activity is no longer available.")
 
@@ -159,6 +161,18 @@ def dashboard():
         raise HTTPException(
             status_code=503,
             detail="Could not read the Python game database.",
+        ) from error
+
+
+@app.get("/api/me/records")
+def player_records(request: Request):
+    uid = require_uid(request)
+    try:
+        return {"records": get_store().get_player_records(uid)}
+    except (OSError, *DATABASE_ERRORS) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Could not read your private game history.",
         ) from error
 
 

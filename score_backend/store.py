@@ -183,6 +183,30 @@ class GameStore:
             "weeklyPlayers": weekly_players,
         }
 
+    def get_player_records(self, uid: str) -> list[dict[str, Any]]:
+        with self._connection() as connection:
+            rows = self._execute(
+                connection,
+                """
+                SELECT game, outcome, points_delta, points_after, created_at
+                FROM game_records
+                WHERE player_id = ?
+                ORDER BY created_at DESC
+                LIMIT 10
+                """,
+                (uid,),
+            )
+            return [
+                {
+                    "game": row["game"],
+                    "outcome": row["outcome"],
+                    "pointsDelta": row["points_delta"],
+                    "pointsAfter": row["points_after"],
+                    "createdAt": row["created_at"],
+                }
+                for row in rows
+            ]
+
     def start_game(self, uid: str, game: object, options: object = None) -> str:
         state = create_game_state(game, options)
         now = datetime.now(timezone.utc)

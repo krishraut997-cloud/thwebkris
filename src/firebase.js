@@ -102,6 +102,30 @@ export function listenToGameDashboard(onDashboard, onError) {
   };
 }
 
+export function listenToPlayerRecords(user, onRecords, onError) {
+  let active = true;
+  let pending = false;
+  const refresh = async () => {
+    if (!active || pending) return;
+    pending = true;
+    try {
+      const { records } = await requestPythonApi("/me/records", null, user);
+      if (active) onRecords(records);
+    } catch (error) {
+      if (active) onError(error);
+    } finally {
+      pending = false;
+    }
+  };
+
+  void refresh();
+  const timer = window.setInterval(refresh, 5000);
+  return () => {
+    active = false;
+    window.clearInterval(timer);
+  };
+}
+
 export async function startVerifiedGame(game, options = {}) {
   const result = await requestPythonApi(
     "",

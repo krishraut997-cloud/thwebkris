@@ -7,6 +7,10 @@
       "destination": "/api?view=dashboard"
     },
     {
+      "source": "/api/me/records",
+      "destination": "/api?view=my-records"
+    },
+    {
       "source": "/api/activity",
       "destination": "/api?view=activity"
     },
