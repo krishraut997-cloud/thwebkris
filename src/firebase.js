@@ -138,7 +138,7 @@ export function listenToGameDashboard(onDashboard, onError) {
   };
 
   void refresh();
-  const timer = window.setInterval(refresh, 5000);
+  const timer = window.setInterval(refresh, 2000);
   const unsubscribe = subscribeToGameUpdates(refresh);
   return () => {
     active = false;
@@ -170,7 +170,7 @@ export function listenToPlayerRecords(user, visitorId, onRecords, onError) {
   };
 
   void refresh();
-  const timer = window.setInterval(refresh, 5000);
+  const timer = window.setInterval(refresh, 2000);
   const unsubscribe = subscribeToGameUpdates(refresh);
   return () => {
     active = false;

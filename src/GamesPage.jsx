@@ -200,7 +200,7 @@ function GameDashboard({
               })}
             </ol>
           ) : (
-            <p className="mt-3 text-[11px] text-muted">Completed games will appear here. The tracker checks for updates every five seconds.</p>
+            <p className="mt-3 text-[11px] text-muted">Completed games will appear here. The tracker checks for updates every two seconds.</p>
           )}
       </section>
 
@@ -271,7 +271,7 @@ function GameDashboard({
 
       <div className="mt-5">
         <p className="mb-3 text-[10px] text-muted">
-          {gameData.activity.totalGames.toLocaleString()} completed games tracked · {gameData.activity.gamesThisWeek.toLocaleString()} in the last 7 days · syncs every 5 seconds
+          {gameData.activity.totalGames.toLocaleString()} completed games tracked · {gameData.activity.gamesThisWeek.toLocaleString()} in the last 7 days · syncs every 2 seconds
         </p>
         <section className="rounded-lg border border-ink/10 bg-[#f8f8f5] p-3 sm:p-4" aria-labelledby="weekly-leaderboard-title">
           <div className="flex items-center justify-between gap-3">
@@ -339,7 +339,7 @@ function GameDashboard({
           <li>Players are ranked from highest points to lowest. Equal scores use wins, games played, then player name.</li>
         </ul>
       </details>
-      <p className="mt-2 text-[10px] leading-5 text-muted">Weekly and all-time scores refresh every five seconds. Weekly points cover the last seven days; all-time totals never reset.</p>
+      <p className="mt-2 text-[10px] leading-5 text-muted">Weekly and all-time scores refresh every two seconds. Weekly points cover the last seven days; all-time totals never reset.</p>
     </section>
   );
 }
