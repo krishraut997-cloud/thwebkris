@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import {
   createPlayerProfile,
+  getGuestVisitorId,
   isFirebaseConfigured,
   listenToAuth,
   listenToGameDashboard,
@@ -156,18 +157,23 @@ function GameDashboard({
         </p>
       )}
 
+      {!profile && (
+        <p role="status" className="mt-4 rounded-lg bg-[#f3f6eb] px-4 py-3 text-xs leading-5 text-[#5d7326]">
+          Guest games are verified and tracked by the Python game service on this browser. Sign in and create a player profile to earn leaderboard points.
+        </p>
+      )}
+
       {profile && (
         <p role="status" className="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
           Verified solo wins add 10 points, losses subtract 10, and draws add 0. Local two-player Tic-tac-toe is not ranked.
         </p>
       )}
 
-      {profile && (
-        <section className="mt-5 rounded-lg border border-ink/10 bg-[#f8f8f5] p-3 sm:p-4" aria-labelledby="private-game-history-title">
+      <section className="mt-5 rounded-lg border border-ink/10 bg-[#f8f8f5] p-3 sm:p-4" aria-labelledby="private-game-history-title">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h3 id="private-game-history-title" className="text-sm font-semibold">Your recent games</h3>
-              <p className="mt-1 text-[10px] text-muted">Private to your signed-in account</p>
+              <p className="mt-1 text-[10px] text-muted">{profile ? "Private to your signed-in account" : "Private to this browser"}</p>
             </div>
             <Clock3 size={17} className="text-[#829f35]" />
           </div>
@@ -179,22 +185,24 @@ function GameDashboard({
             <ol className="mt-3 divide-y divide-ink/5">
               {privateRecords.records.map((record) => {
                 const title = gameOptions.find(({ id }) => id === record.game)?.title || record.game;
-                const points = record.pointsDelta > 0 ? `+${record.pointsDelta}` : record.pointsDelta;
                 return (
                   <li key={`${record.game}-${record.createdAt}`} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-3 text-[11px]">
                     <span className="font-medium">{title} · {record.outcome}</span>
                     <span className="text-muted">
-                      {points} pts · {new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(record.createdAt))}
+                      {record.pointsDelta === null
+                        ? "Guest · not ranked"
+                        : `${record.pointsDelta > 0 ? "+" : ""}${record.pointsDelta} pts`}
+                      {" · "}
+                      {new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(record.createdAt))}
                     </span>
                   </li>
                 );
               })}
             </ol>
           ) : (
-            <p className="mt-3 text-[11px] text-muted">Completed signed-in games will appear here.</p>
+            <p className="mt-3 text-[11px] text-muted">Completed games will appear here. The tracker checks for updates every five seconds.</p>
           )}
-        </section>
-      )}
+      </section>
 
       <div className="mt-5">
         {authLoading ? (
@@ -258,10 +266,13 @@ function GameDashboard({
       )}
       {gameData.loading && <p className="mt-3 text-[11px] text-muted">Loading the leaderboard…</p>}
       <p className="mt-2 text-[10px] leading-5 text-muted">
-        Player names are unique. Google sign-in reconnects your profile on the same Python score server.
+        Guest game history is private to this browser. Google sign-in saves points to the shared leaderboard.
       </p>
 
       <div className="mt-5">
+        <p className="mb-3 text-[10px] text-muted">
+          {gameData.activity.totalGames.toLocaleString()} completed games tracked · {gameData.activity.gamesThisWeek.toLocaleString()} in the last 7 days · syncs every 5 seconds
+        </p>
         <section className="rounded-lg border border-ink/10 bg-[#f8f8f5] p-3 sm:p-4" aria-labelledby="weekly-leaderboard-title">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -339,18 +350,18 @@ function useGameScore() {
   return context;
 }
 
-function useVerifiedGame(game, enabled) {
-  const { startGame, submitAction, setScoreError, clearScoreError } = useGameScore();
+function useVerifiedGame(game, trackingEnabled) {
+  const { enabled, visitorId, startGame, submitAction, setScoreError, clearScoreError } = useGameScore();
   const [sessionId, setSessionId] = useState(null);
   const [starting, setStarting] = useState(false);
   const [failed, setFailed] = useState(false);
 
   const start = useCallback(async (options = {}) => {
-    if (!enabled) return null;
+    if (!trackingEnabled) return null;
     setStarting(true);
     setSessionId(null);
     try {
-      const nextSessionId = await startGame(game, options);
+      const nextSessionId = await startGame(game, options, visitorId, enabled);
       setSessionId(nextSessionId);
       setFailed(false);
       clearScoreError();
@@ -362,29 +373,29 @@ function useVerifiedGame(game, enabled) {
     } finally {
       setStarting(false);
     }
-  }, [clearScoreError, enabled, game, setScoreError, startGame]);
+  }, [clearScoreError, enabled, game, setScoreError, startGame, trackingEnabled, visitorId]);
 
   useEffect(() => {
-    if (enabled) {
+    if (trackingEnabled) {
       start();
     } else {
       setSessionId(null);
       setFailed(false);
       setStarting(false);
     }
-  }, [enabled, start]);
+  }, [start, trackingEnabled]);
 
   const action = useCallback(async (payload) => {
     if (!sessionId) throw new Error("The verified game is not ready.");
     try {
-      const result = await submitAction(sessionId, payload);
+      const result = await submitAction(sessionId, payload, visitorId, enabled);
       clearScoreError();
       return result;
     } catch (error) {
       setScoreError(error.message || "The game result could not be verified.");
       throw error;
     }
-  }, [clearScoreError, sessionId, setScoreError, submitAction]);
+  }, [clearScoreError, enabled, sessionId, setScoreError, submitAction, visitorId]);
 
   return { sessionId, starting, failed, start, action };
 }
@@ -481,14 +492,14 @@ function createDeck() {
 }
 
 function MemoryGame() {
-  const { enabled } = useGameScore();
-  const verified = useVerifiedGame("memory", enabled);
+  const { enabled, trackingEnabled } = useGameScore();
+  const verified = useVerifiedGame("memory", trackingEnabled);
   const [cards, setCards] = useState(createDeck);
   const [flipped, setFlipped] = useState([]);
   const [matched, setMatched] = useState([]);
   const [moves, setMoves] = useState(0);
   const [gameError, setGameError] = useState("");
-  const verifiedPending = enabled && !verified.sessionId && !verified.failed;
+  const verifiedPending = trackingEnabled && !verified.sessionId && !verified.failed;
 
   useEffect(() => {
     if (flipped.length !== 2 || verified.sessionId) return undefined;
@@ -590,7 +601,7 @@ function MemoryGame() {
       </div>
       {matched.length === 12 && (
         <p role="status" className="mt-5 flex items-center justify-center gap-2 text-sm font-semibold text-[#71862f]">
-          <Check size={17} /> All pairs found in {moves} moves. Nice work!{verified.sessionId ? " +10 points." : ""}
+          <Check size={17} /> All pairs found in {moves} moves. Nice work!{enabled && verified.sessionId ? " +10 points." : ""}
         </p>
       )}
     </div>
@@ -689,7 +700,7 @@ function getAIMove(squares, difficulty) {
 }
 
 function TicTacToe() {
-  const { enabled } = useGameScore();
+  const { enabled, trackingEnabled } = useGameScore();
   const [mode, setMode] = useState("ai");
   const [difficulty, setDifficulty] = useState("Normal");
   const [squares, setSquares] = useState(Array(9).fill(null));
@@ -697,12 +708,12 @@ function TicTacToe() {
   const [scores, setScores] = useState({ X: 0, O: 0 });
   const [movePending, setMovePending] = useState(false);
   const [moveError, setMoveError] = useState("");
-  const verified = useVerifiedGame("tic-tac-toe", enabled && mode === "ai");
+  const verified = useVerifiedGame("tic-tac-toe", trackingEnabled && mode === "ai");
   const winningLine = getWinningLine(squares);
   const winner = getWinner(squares);
   const draw = !winner && squares.every(Boolean);
   const startVerified = verified.start;
-  const verifiedPending = enabled && mode === "ai" && !verified.sessionId && !verified.failed;
+  const verifiedPending = trackingEnabled && mode === "ai" && !verified.sessionId && !verified.failed;
 
   useEffect(() => {
     if (mode !== "ai" || verified.sessionId || nextPlayer !== "O" || winner || draw) return undefined;
@@ -728,11 +739,11 @@ function TicTacToe() {
     const timeoutId = window.setTimeout(() => {
       setSquares(Array(9).fill(null));
       setNextPlayer("X");
-      if (enabled && mode === "ai") startVerified({ difficulty });
+      if (trackingEnabled && mode === "ai") startVerified({ difficulty });
     }, 1400);
 
     return () => window.clearTimeout(timeoutId);
-  }, [difficulty, draw, enabled, mode, startVerified]);
+  }, [difficulty, draw, mode, startVerified, trackingEnabled]);
 
   async function play(index) {
     if (squares[index] || winner || draw || (mode === "ai" && nextPlayer === "O")) return;
@@ -770,7 +781,7 @@ function TicTacToe() {
     setSquares(Array(9).fill(null));
     setNextPlayer("X");
     setMoveError("");
-    if (enabled && mode === "ai") verified.start({ difficulty });
+    if (trackingEnabled && mode === "ai") verified.start({ difficulty });
   }
 
   function resetMatch() {
@@ -784,7 +795,7 @@ function TicTacToe() {
     setNextPlayer("X");
     setScores({ X: 0, O: 0 });
     setMoveError("");
-    if (nextMode === mode && enabled && nextMode === "ai") {
+    if (nextMode === mode && trackingEnabled && nextMode === "ai") {
       startVerified({ difficulty });
     }
   }
@@ -793,7 +804,7 @@ function TicTacToe() {
     setDifficulty(nextDifficulty);
     setSquares(Array(9).fill(null));
     setNextPlayer("X");
-    if (enabled && mode === "ai") startVerified({ difficulty: nextDifficulty });
+    if (trackingEnabled && mode === "ai") startVerified({ difficulty: nextDifficulty });
   }
 
   return (
@@ -857,9 +868,9 @@ function TicTacToe() {
         )}
         <p className="mt-3 text-sm text-muted" role="status" aria-live="polite">
           {winner
-            ? `${mode === "ai" ? winner === "X" ? "You win" : "AI wins" : `Player ${winner} wins`} this round!${mode === "ai" && verified.sessionId ? winner === "X" ? " +10 points." : " -10 points." : ""}`
+            ? `${mode === "ai" ? winner === "X" ? "You win" : "AI wins" : `Player ${winner} wins`} this round!${mode === "ai" && enabled && verified.sessionId ? winner === "X" ? " +10 points." : " -10 points." : ""}`
             : draw
-              ? `It’s a draw — starting a new game…${mode === "ai" && verified.sessionId ? " 0 points." : ""}`
+              ? `It’s a draw — starting a new game…${mode === "ai" && enabled && verified.sessionId ? " 0 points." : ""}`
               : mode === "ai" && nextPlayer === "O"
                 ? "AI is thinking…"
                 : mode === "ai"
@@ -895,8 +906,8 @@ function TicTacToe() {
 }
 
 function ContextGuessGame() {
-  const { enabled } = useGameScore();
-  const verified = useVerifiedGame("context-guess", enabled);
+  const { enabled, trackingEnabled } = useGameScore();
+  const verified = useVerifiedGame("context-guess", trackingEnabled);
   const [puzzle, setPuzzle] = useState(null);
   const [rankByWord, setRankByWord] = useState(null);
   const [guess, setGuess] = useState("");
@@ -909,7 +920,7 @@ function ContextGuessGame() {
   const [guessPending, setGuessPending] = useState(false);
 
   useEffect(() => {
-    if (enabled && !verified.failed) return undefined;
+    if (trackingEnabled && !verified.failed) return undefined;
     let active = true;
 
     getContextPuzzle()
@@ -928,7 +939,7 @@ function ContextGuessGame() {
     return () => {
       active = false;
     };
-  }, [enabled, verified.failed]);
+  }, [trackingEnabled, verified.failed]);
 
   useEffect(() => {
     if (verified.sessionId) setLoading(false);
@@ -966,11 +977,11 @@ function ContextGuessGame() {
           setPuzzle(result.answer);
           setWon(true);
           setComplete(true);
-          setMessage(`You found it — “${result.answer}” is rank #1! +10 points.`);
+          setMessage(`You found it — “${result.answer}” is rank #1!${enabled ? " +10 points." : ""}`);
         } else if (result.status === "lost") {
           setPuzzle(result.answer);
           setComplete(true);
-          setMessage(`No guesses left. The word was “${result.answer}”. -10 points.`);
+          setMessage(`No guesses left. The word was “${result.answer}”.${enabled ? " -10 points." : ""}`);
         } else {
           setMessage(
             result.rank >= CONTEXT_UNLISTED_RANK
@@ -1027,7 +1038,7 @@ function ContextGuessGame() {
     setComplete(false);
 
     try {
-      if (enabled && await verified.start()) {
+      if (trackingEnabled && await verified.start()) {
         setPuzzle(null);
         setRankByWord(null);
         setLoading(false);
@@ -1144,8 +1155,8 @@ function ContextGuessGame() {
 }
 
 function NumberGuessGame() {
-  const { enabled } = useGameScore();
-  const verified = useVerifiedGame("number-guess", enabled);
+  const { enabled, trackingEnabled } = useGameScore();
+  const verified = useVerifiedGame("number-guess", trackingEnabled);
   const [runtime, setRuntime] = useState(null);
   const [difficulty, setDifficulty] = useState("Easy");
   const [loading, setLoading] = useState(true);
@@ -1158,7 +1169,7 @@ function NumberGuessGame() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (enabled && !verified.failed) {
+    if (trackingEnabled && !verified.failed) {
       setLoading(!verified.sessionId);
       setError("");
       return undefined;
@@ -1190,7 +1201,7 @@ function NumberGuessGame() {
     return () => {
       active = false;
     };
-  }, [enabled, retry, verified.failed, verified.sessionId]);
+  }, [retry, trackingEnabled, verified.failed, verified.sessionId]);
 
   const level = guessLevels.find((item) => item.name === difficulty);
 
@@ -1208,9 +1219,9 @@ function NumberGuessGame() {
       if (verified.sessionId) {
         const result = await verified.action({ type: "numberGuess", guess: value });
         const resultMessage = result.status === "correct"
-          ? `You got it! The number was ${result.answer}. +10 points.`
+          ? `You got it! The number was ${result.answer}.${enabled ? " +10 points." : ""}`
           : result.status === "lost"
-            ? `No guesses left. The number was ${result.answer}. -10 points.`
+            ? `No guesses left. The number was ${result.answer}.${enabled ? " -10 points." : ""}`
             : result.status === "low"
               ? "Too low — try a higher number."
               : "Too high — try a lower number.";
@@ -1243,7 +1254,7 @@ function NumberGuessGame() {
     setSubmitting(true);
     try {
       if (runtime) await runtime.runPythonAsync("reset_game()");
-      if (enabled) await verified.start({ difficulty });
+      if (trackingEnabled) await verified.start({ difficulty });
       setAttempts([]);
       setMessage("New number picked. Good luck!");
       setComplete(false);
@@ -1265,7 +1276,7 @@ function NumberGuessGame() {
           `set_level(${nextLevel.maximum}, ${nextLevel.attempts})`,
         );
       }
-      if (enabled) await verified.start({ difficulty: nextDifficulty });
+      if (trackingEnabled) await verified.start({ difficulty: nextDifficulty });
       setDifficulty(nextDifficulty);
       setAttempts([]);
       setMessage(`New ${nextDifficulty.toLowerCase()} game started.`);
@@ -1396,6 +1407,7 @@ export default function GamesPage() {
   const [gameData, setGameData] = useState({
     players: {},
     weeklyPlayers: [],
+    activity: { totalGames: 0, gamesThisWeek: 0 },
     loading: true,
     error: "",
   });
@@ -1407,6 +1419,7 @@ export default function GamesPage() {
   const [authUser, setAuthUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [profileSaving, setProfileSaving] = useState(false);
+  const [visitorId] = useState(getGuestVisitorId);
   const [trackerStatus, setTrackerStatus] = useState({
     connected: false,
     updatedAt: null,
@@ -1466,13 +1479,13 @@ export default function GamesPage() {
   }, []);
 
   useEffect(() => {
-    if (currentGame) return undefined;
     return listenToGameDashboard(
-      ({ players, weeklyPlayers }) => {
+      ({ players, weeklyPlayers, activity }) => {
         setGameData((current) => ({
           ...current,
           players: Object.fromEntries(players.map(({ id, ...player }) => [id, player])),
           weeklyPlayers,
+          activity,
           loading: false,
           error: "",
         }));
@@ -1500,14 +1513,15 @@ export default function GamesPage() {
   const profile = authUser ? gameData.players[authUser.uid] : null;
 
   useEffect(() => {
-    if (currentGame || !authUser || !profile) {
+    if (currentGame) {
       setPrivateRecords({ records: [], loading: false, error: "" });
       return undefined;
     }
 
     setPrivateRecords((current) => ({ ...current, loading: true, error: "" }));
     return listenToPlayerRecords(
-      authUser,
+      profile ? authUser : null,
+      visitorId,
       (records) => setPrivateRecords({ records, loading: false, error: "" }),
       (error) => setPrivateRecords((current) => ({
         ...current,
@@ -1515,7 +1529,7 @@ export default function GamesPage() {
         error: `Could not load your private game history: ${error.message}`,
       })),
     );
-  }, [authUser, currentGame, profile?.name]);
+  }, [authUser, currentGame, profile?.name, visitorId]);
 
   async function createProfile(name) {
     if (!authUser) throw new Error("Sign in with Google before creating a player profile.");
@@ -1528,17 +1542,24 @@ export default function GamesPage() {
   }
 
   const startGame = useCallback(
-    (game, options) => startVerifiedGame(game, options),
+    (game, options, guestVisitorId, usePlayerProfile) =>
+      startVerifiedGame(game, options, guestVisitorId, usePlayerProfile),
     [],
   );
   const submitAction = useCallback(
-    (sessionId, action) => submitVerifiedGameAction(sessionId, action),
+    (sessionId, action, guestVisitorId, usePlayerProfile) =>
+      submitVerifiedGameAction(sessionId, action, guestVisitorId, usePlayerProfile),
     [],
   );
   const setScoreError = useCallback((message) => {
     setGameData((current) => ({
       ...current,
       error: `Could not verify score: ${message}`,
+    }));
+    setTrackerStatus((current) => ({
+      ...current,
+      connected: false,
+      error: message,
     }));
   }, []);
   const clearScoreError = useCallback(() => {
@@ -1549,11 +1570,13 @@ export default function GamesPage() {
   }, []);
   const scoreContext = useMemo(() => ({
     enabled: Boolean(profile),
+    trackingEnabled: true,
+    visitorId,
     startGame,
     submitAction,
     setScoreError,
     clearScoreError,
-  }), [clearScoreError, profile, setScoreError, startGame, submitAction]);
+  }), [clearScoreError, profile, setScoreError, startGame, submitAction, visitorId]);
   const activeGameOption = gameOptions.find(({ id }) => id === activeGame);
 
   return (
@@ -1571,6 +1594,11 @@ export default function GamesPage() {
 
       <main className="mx-auto max-w-[1100px] px-4 pb-12 pt-7 sm:px-8 sm:pb-16 sm:pt-16">
         <GameScoreContext.Provider value={scoreContext}>
+          {currentGame && trackerStatus.error && (
+            <p role="alert" className="mb-5 rounded-lg bg-red-50 px-4 py-3 text-xs leading-5 text-red-700">
+              The Python tracker could not save this round: {trackerStatus.error}
+            </p>
+          )}
           <section className="games-enter">
             {currentGame ? (
               <div className="grid items-center gap-8 lg:grid-cols-[1fr_0.9fr]">
@@ -1591,6 +1619,11 @@ export default function GamesPage() {
                     <h2 className="text-xs font-semibold">How to play</h2>
                     <p className="mt-2 text-xs leading-6 text-muted">{currentGame.howToPlay}</p>
                   </div>
+                  <p className="mt-3 max-w-lg text-[11px] leading-5 text-muted">
+                    {profile
+                      ? "The Python tracker saves your verified result to your player profile."
+                      : "The Python tracker saves completed rounds privately in this browser; guest games do not earn leaderboard points."}
+                  </p>
                 </div>
                 <img
                   src={`${HOME_PATH}${currentGame.previewImage}`}
@@ -1614,7 +1647,7 @@ export default function GamesPage() {
                       <span className="text-[#829f35]">Think a lot.</span>
                     </h1>
                     <p className="mt-4 max-w-lg text-sm leading-6 text-muted sm:mt-5">
-                      A small collection of browser games you can play without an account. Sign in only if you want a leaderboard profile.
+                      Play without an account: supported solo rounds are verified and tracked privately in this browser. Sign in to save points to the shared leaderboard.
                     </p>
                   </div>
                   <span className="rounded-full bg-[#eaeae2] px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted">Built with React</span>

@@ -35,7 +35,17 @@ class GameApiTests(unittest.TestCase):
 
     def post_as(self, uid, payload):
         with patch.object(index, "require_uid", return_value=uid):
-            return self.client.post("/api", json=payload)
+            return self.client.post(
+                "/api",
+                json=payload,
+                headers={"Authorization": "Bearer test-token"},
+            )
+
+    def post_as_guest(self, visitor_id, payload):
+        return self.client.post(
+            "/api",
+            json={**payload, "visitorId": visitor_id},
+        )
 
     def create_player(self, uid, name):
         response = self.post_as(uid, {"operation": "profile", "name": name})
@@ -47,6 +57,17 @@ class GameApiTests(unittest.TestCase):
         try:
             row = connection.execute(
                 "SELECT state_json FROM game_sessions WHERE id = ?",
+                (session_id,),
+            ).fetchone()
+        finally:
+            connection.close()
+        return json.loads(row[0])
+
+    def load_guest_game_state(self, session_id):
+        connection = sqlite3.connect(self.database_path)
+        try:
+            row = connection.execute(
+                "SELECT state_json FROM guest_game_sessions WHERE id = ?",
                 (session_id,),
             ).fetchone()
         finally:
@@ -134,7 +155,10 @@ class GameApiTests(unittest.TestCase):
             connection.close()
 
         with patch.object(index, "require_uid", return_value="player-1"):
-            response = self.client.get("/api/me/records")
+            response = self.client.get(
+                "/api/me/records",
+                headers={"Authorization": "Bearer test-token"},
+            )
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(
             [record["game"] for record in response.json()["records"]],
@@ -144,7 +168,10 @@ class GameApiTests(unittest.TestCase):
         self.assertEqual(response.json()["records"][0]["pointsDelta"], -10)
 
         with patch.object(index, "require_uid", return_value="player-2"):
-            rewritten_response = self.client.get("/api?view=my-records")
+            rewritten_response = self.client.get(
+                "/api?view=my-records",
+                headers={"Authorization": "Bearer test-token"},
+            )
         self.assertEqual(rewritten_response.status_code, 200, rewritten_response.text)
         self.assertEqual(
             [record["game"] for record in rewritten_response.json()["records"]],
@@ -152,7 +179,73 @@ class GameApiTests(unittest.TestCase):
         )
 
         unauthorized = self.client.get("/api/me/records")
-        self.assertEqual(unauthorized.status_code, 401)
+        self.assertEqual(unauthorized.status_code, 400)
+
+    def test_guest_games_are_verified_tracked_and_not_ranked(self):
+        visitor_id = "a" * 32
+        start = self.post_as_guest(visitor_id, {
+            "operation": "start",
+            "game": "number-guess",
+            "options": {"difficulty": "Easy"},
+        })
+        self.assertEqual(start.status_code, 200, start.text)
+        session_id = start.json()["sessionId"]
+        session = self.load_guest_game_state(session_id)
+
+        result = self.post_as_guest(visitor_id, {
+            "operation": "action",
+            "sessionId": session_id,
+            "action": {"type": "numberGuess", "guess": session["secret"]},
+        })
+        self.assertEqual(result.status_code, 200, result.text)
+        self.assertEqual(result.json()["outcome"], "win")
+        self.assertEqual(result.json()["scoreDelta"], 0)
+
+        own_history = self.client.get(
+            f"/api/me/records?visitorId={visitor_id}",
+        )
+        self.assertEqual(own_history.status_code, 200, own_history.text)
+        self.assertEqual(own_history.json()["records"][0]["game"], "number-guess")
+        self.assertIsNone(own_history.json()["records"][0]["pointsDelta"])
+
+        other_history = self.client.get(
+            f"/api/me/records?visitorId={'b' * 32}",
+        )
+        self.assertEqual(other_history.status_code, 200, other_history.text)
+        self.assertEqual(other_history.json()["records"], [])
+        rewritten_history = self.client.get(
+            f"/api?view=my-records&visitorId={visitor_id}",
+        )
+        self.assertEqual(rewritten_history.status_code, 200, rewritten_history.text)
+        self.assertEqual(len(rewritten_history.json()["records"]), 1)
+
+        dashboard = self.client.get("/api/dashboard")
+        self.assertEqual(dashboard.status_code, 200, dashboard.text)
+        self.assertEqual(dashboard.json()["players"], [])
+        self.assertEqual(dashboard.json()["activity"], {
+            "totalGames": 1,
+            "gamesThisWeek": 1,
+        })
+
+    def test_guest_tracker_rejects_invalid_ids_and_foreign_sessions(self):
+        invalid = self.client.post("/api", json={
+            "operation": "start",
+            "game": "memory",
+            "visitorId": "not-a-random-id",
+        })
+        self.assertEqual(invalid.status_code, 400)
+
+        start = self.post_as_guest("a" * 32, {
+            "operation": "start",
+            "game": "memory",
+        })
+        session_id = start.json()["sessionId"]
+        foreign_action = self.post_as_guest("b" * 32, {
+            "operation": "action",
+            "sessionId": session_id,
+            "action": {"type": "memoryTurn", "first": 0, "second": 1},
+        })
+        self.assertEqual(foreign_action.status_code, 403)
 
     def test_dashboard_query_route_is_available_through_api_root(self):
         self.create_player("player-1", "first player")

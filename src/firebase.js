@@ -78,12 +78,22 @@ export function signOutPlayer() {
   return signOut(auth);
 }
 
+export function getGuestVisitorId() {
+  const storageKey = "python-game-tracker-visitor";
+  const existingId = window.localStorage.getItem(storageKey);
+  if (existingId && /^[a-f0-9]{32}$/.test(existingId)) return existingId;
+
+  const bytes = new Uint8Array(16);
+  window.crypto.getRandomValues(bytes);
+  const visitorId = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  window.localStorage.setItem(storageKey, visitorId);
+  return visitorId;
+}
+
 async function requestPythonApi(path, payload, user) {
   const headers = { "Content-Type": "application/json" };
   if (user) {
     headers.Authorization = `Bearer ${await user.getIdToken()}`;
-  } else if (payload) {
-    throw new Error("Sign in with Google to save leaderboard scores.");
   }
 
   const response = await fetchPythonApi(`${scoreApiBase}/api${path}`, {
@@ -111,6 +121,14 @@ export function listenToGameDashboard(onDashboard, onError) {
     pending = true;
     try {
       const dashboard = await requestPythonApi("/dashboard");
+      if (
+        !Array.isArray(dashboard.players) ||
+        !Array.isArray(dashboard.weeklyPlayers) ||
+        !Number.isInteger(dashboard.activity?.totalGames) ||
+        !Number.isInteger(dashboard.activity?.gamesThisWeek)
+      ) {
+        throw new Error("The Python game tracker returned incomplete dashboard data.");
+      }
       if (active) onDashboard(dashboard);
     } catch (error) {
       if (active) onError(error);
@@ -129,14 +147,20 @@ export function listenToGameDashboard(onDashboard, onError) {
   };
 }
 
-export function listenToPlayerRecords(user, onRecords, onError) {
+export function listenToPlayerRecords(user, visitorId, onRecords, onError) {
   let active = true;
   let pending = false;
   const refresh = async () => {
     if (!active || pending) return;
     pending = true;
     try {
-      const { records } = await requestPythonApi("/me/records", null, user);
+      const path = user
+        ? "/me/records"
+        : `/me/records?visitorId=${encodeURIComponent(visitorId)}`;
+      const { records } = await requestPythonApi(path, null, user);
+      if (!Array.isArray(records)) {
+        throw new Error("The Python game tracker returned invalid game history.");
+      }
       if (active) onRecords(records);
     } catch (error) {
       if (active) onError(error);
@@ -155,20 +179,20 @@ export function listenToPlayerRecords(user, onRecords, onError) {
   };
 }
 
-export async function startVerifiedGame(game, options = {}) {
+export async function startVerifiedGame(game, options = {}, visitorId, usePlayerProfile = false) {
   const result = await requestPythonApi(
     "",
-    { operation: "start", game, options },
-    auth?.currentUser,
+    { operation: "start", game, options, visitorId },
+    usePlayerProfile ? auth?.currentUser : null,
   );
   return result.sessionId;
 }
 
-export function submitVerifiedGameAction(sessionId, action) {
+export function submitVerifiedGameAction(sessionId, action, visitorId, usePlayerProfile = false) {
   return requestPythonApi(
     "",
-    { operation: "action", sessionId, action },
-    auth?.currentUser,
+    { operation: "action", sessionId, action, visitorId },
+    usePlayerProfile ? auth?.currentUser : null,
   ).then((result) => {
     if (result.outcome) notifyGameRecorded();
     return result;

@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import sqlite3
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -131,6 +132,12 @@ def require_uid(request: Request) -> str:
     return users[0]["localId"]
 
 
+def require_visitor_id(visitor_id: object) -> str:
+    if not isinstance(visitor_id, str) or not re.fullmatch(r"[a-f0-9]{32}", visitor_id):
+        raise HTTPException(status_code=400, detail="Invalid guest tracker ID.")
+    return visitor_id
+
+
 @app.get("/")
 @app.get("/api")
 def health_check(request: Request):
@@ -166,9 +173,20 @@ def dashboard():
 
 @app.get("/api/me/records")
 def player_records(request: Request):
-    uid = require_uid(request)
+    if request.headers.get("authorization"):
+        uid = require_uid(request)
+        visitor_id = None
+    else:
+        uid = None
+        visitor_id = require_visitor_id(request.query_params.get("visitorId"))
     try:
-        return {"records": get_store().get_player_records(uid)}
+        store = get_store()
+        records = (
+            store.get_player_records(uid)
+            if uid is not None
+            else store.get_guest_records(visitor_id)
+        )
+        return {"records": records}
     except (OSError, *DATABASE_ERRORS) as error:
         raise HTTPException(
             status_code=503,
@@ -179,11 +197,11 @@ def player_records(request: Request):
 @app.post("/")
 @app.post("/{path:path}")
 def game_endpoint(request: Request, payload: dict[str, Any]):
-    uid = require_uid(request)
-    store = get_store()
     operation = payload.get("operation")
 
     if operation == "profile":
+        uid = require_uid(request)
+        store = get_store()
         name = payload.get("name")
         try:
             return store.create_player(uid, name)
@@ -199,9 +217,25 @@ def game_endpoint(request: Request, payload: dict[str, Any]):
                 detail="Could not save your profile to the Python game database.",
             ) from error
 
+    if operation not in {"start", "action"}:
+        raise HTTPException(status_code=400, detail="Unknown score operation.")
+
+    if request.headers.get("authorization"):
+        uid = require_uid(request)
+        visitor_id = None
+    else:
+        uid = None
+        visitor_id = require_visitor_id(payload.get("visitorId"))
+    store = get_store()
+
     if operation == "start":
         try:
-            return {"sessionId": store.start_game(uid, payload.get("game"), payload.get("options"))}
+            session_id = (
+                store.start_game(uid, payload.get("game"), payload.get("options"))
+                if uid is not None
+                else store.start_guest_game(visitor_id, payload.get("game"), payload.get("options"))
+            )
+            return {"sessionId": session_id}
         except GameError as error:
             raise HTTPException(status_code=error.status_code, detail=str(error)) from error
         except DATABASE_ERRORS as error:
@@ -210,11 +244,14 @@ def game_endpoint(request: Request, payload: dict[str, Any]):
                 detail="Could not start a game in the Python game database.",
             ) from error
 
-    if operation != "action":
-        raise HTTPException(status_code=400, detail="Unknown score operation.")
-
     try:
-        return store.apply_game_action(uid, payload.get("sessionId"), payload.get("action"))
+        if uid is not None:
+            return store.apply_game_action(uid, payload.get("sessionId"), payload.get("action"))
+        return store.apply_guest_game_action(
+            visitor_id,
+            payload.get("sessionId"),
+            payload.get("action"),
+        )
     except GameError as error:
         raise HTTPException(status_code=error.status_code, detail=str(error)) from error
     except (OSError, *DATABASE_ERRORS, ValueError) as error:

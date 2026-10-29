@@ -4,10 +4,10 @@
 
 **Live site:** [krishraut997-cloud.github.io/thwebkris](https://krishraut997-cloud.github.io/thwebkris/)
 
-A personal portfolio and small collection of playable browser games. The score API is built in Python and verifies completed game sessions before saving leaderboard results.
+A personal portfolio and small collection of playable browser games. The Python score API verifies game sessions, keeps guest history private to the browser, and saves signed-in player scores to the leaderboard.
 
 The site uses a clean white design with subtle motion. Weekly and all-time
-leaderboards update automatically.
+leaderboards and completed-game counts refresh every five seconds.
 
 ## Tech stack
 

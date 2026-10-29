@@ -67,6 +67,24 @@ class GameStore:
                 );
                 CREATE INDEX IF NOT EXISTS game_records_created_at
                     ON game_records(created_at DESC);
+                CREATE TABLE IF NOT EXISTS guest_game_sessions (
+                    id TEXT PRIMARY KEY,
+                    visitor_id TEXT NOT NULL,
+                    game TEXT NOT NULL,
+                    state_json TEXT NOT NULL,
+                    finished INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    expires_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS guest_game_records (
+                    id TEXT PRIMARY KEY,
+                    visitor_id TEXT NOT NULL,
+                    game TEXT NOT NULL,
+                    outcome TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS guest_game_records_created_at
+                    ON guest_game_records(created_at DESC);
                 """
             if self.is_postgres:
                 for statement in schema.split(";"):
@@ -132,7 +150,7 @@ class GameStore:
 
         return {"id": uid, "name": name, "points": 0, "gamesPlayed": 0, "wins": 0}
 
-    def get_dashboard(self) -> dict[str, list[dict[str, Any]]]:
+    def get_dashboard(self) -> dict[str, Any]:
         with self._connection() as connection:
             players = [
                 {
@@ -178,9 +196,26 @@ class GameStore:
                     ((datetime.now(timezone.utc) - timedelta(days=7)).isoformat(),),
                 )
             ]
+            activity = self._execute(
+                connection,
+                """
+                SELECT COUNT(*) AS total_games,
+                       SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS weekly_games
+                FROM (
+                    SELECT created_at FROM game_records
+                    UNION ALL
+                    SELECT created_at FROM guest_game_records
+                ) AS completed_games
+                """,
+                ((datetime.now(timezone.utc) - timedelta(days=7)).isoformat(),),
+            ).fetchone()
         return {
             "players": players,
             "weeklyPlayers": weekly_players,
+            "activity": {
+                "totalGames": activity["total_games"],
+                "gamesThisWeek": activity["weekly_games"] or 0,
+            },
         }
 
     def get_player_records(self, uid: str) -> list[dict[str, Any]]:
@@ -207,6 +242,30 @@ class GameStore:
                 for row in rows
             ]
 
+    def get_guest_records(self, visitor_id: str) -> list[dict[str, Any]]:
+        with self._connection() as connection:
+            rows = self._execute(
+                connection,
+                """
+                SELECT game, outcome, created_at
+                FROM guest_game_records
+                WHERE visitor_id = ?
+                ORDER BY created_at DESC
+                LIMIT 10
+                """,
+                (visitor_id,),
+            )
+            return [
+                {
+                    "game": row["game"],
+                    "outcome": row["outcome"],
+                    "pointsDelta": None,
+                    "pointsAfter": None,
+                    "createdAt": row["created_at"],
+                }
+                for row in rows
+            ]
+
     def start_game(self, uid: str, game: object, options: object = None) -> str:
         state = create_game_state(game, options)
         now = datetime.now(timezone.utc)
@@ -227,6 +286,30 @@ class GameStore:
                 (
                     session_id,
                     uid,
+                    state["game"],
+                    json.dumps(state),
+                    now.isoformat(),
+                    (now + SESSION_LIFETIME).isoformat(),
+                ),
+            )
+        return session_id
+
+    def start_guest_game(self, visitor_id: str, game: object, options: object = None) -> str:
+        state = create_game_state(game, options)
+        now = datetime.now(timezone.utc)
+        session_id = "".join(secrets.choice(SESSION_ID_CHARACTERS) for _ in range(20))
+        with self._connection() as connection:
+            self._begin_write(connection)
+            self._execute(
+                connection,
+                """
+                INSERT INTO guest_game_sessions
+                    (id, visitor_id, game, state_json, finished, created_at, expires_at)
+                VALUES (?, ?, ?, ?, 0, ?, ?)
+                """,
+                (
+                    session_id,
+                    visitor_id,
                     state["game"],
                     json.dumps(state),
                     now.isoformat(),
@@ -328,4 +411,67 @@ class GameStore:
             **result,
             "outcome": outcome,
             "scoreDelta": score_change,
+        }
+
+    def apply_guest_game_action(
+        self,
+        visitor_id: str,
+        session_id: object,
+        action: object,
+    ) -> dict[str, Any]:
+        if not isinstance(session_id, str) or not re.fullmatch(r"[A-Za-z0-9]{20}", session_id):
+            raise GameError(400, "Invalid game session.")
+
+        with self._connection() as connection:
+            self._begin_write(connection)
+            row = self._execute(
+                connection,
+                "SELECT * FROM guest_game_sessions WHERE id = ?"
+                + (" FOR UPDATE" if self.is_postgres else ""),
+                (session_id,),
+            ).fetchone()
+            if row is None:
+                raise GameError(404, "Game session not found.")
+            if row["visitor_id"] != visitor_id:
+                raise GameError(403, "This is not your game session.")
+            if row["finished"]:
+                raise GameError(409, "This game has already ended.")
+            expires_at = datetime.fromisoformat(row["expires_at"])
+            if expires_at <= datetime.now(timezone.utc):
+                raise GameError(410, "This game session expired. Start a new game.")
+
+            updated_session, outcome, result = apply_action(
+                json.loads(row["state_json"]), action,
+            )
+            if outcome:
+                self._execute(
+                    connection,
+                    """
+                    INSERT INTO guest_game_records
+                        (id, visitor_id, game, outcome, created_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        session_id,
+                        visitor_id,
+                        row["game"],
+                        outcome,
+                        datetime.now(timezone.utc).isoformat(),
+                    ),
+                )
+
+            self._execute(
+                connection,
+                """
+                UPDATE guest_game_sessions
+                SET state_json = ?, finished = ?
+                WHERE id = ?
+                """,
+                (json.dumps(updated_session), int(outcome is not None), session_id),
+            )
+
+        return {
+            **result,
+            "outcome": outcome,
+            "scoreDelta": 0,
         }
