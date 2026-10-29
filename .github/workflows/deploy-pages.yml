@@ -36,7 +36,9 @@ jobs:
           VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
           VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
           VITE_SCORE_API_URL: https://portfolio-seven-green-mocmyyk3ff.vercel.app
+          VITE_SITE_ORIGIN: https://krishraut997-cloud.github.io
           VITE_ADSENSE_CLIENT: ${{ vars.VITE_ADSENSE_CLIENT }}
+          VITE_ADSENSE_CONSENT_CONFIGURED: ${{ vars.VITE_ADSENSE_CONSENT_CONFIGURED }}
           VITE_ADSENSE_HOME_SLOT: ${{ vars.VITE_ADSENSE_HOME_SLOT }}
           VITE_ADSENSE_GAMES_SLOT: ${{ vars.VITE_ADSENSE_GAMES_SLOT }}
       - name: Upload Pages artifact

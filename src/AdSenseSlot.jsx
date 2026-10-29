@@ -2,9 +2,15 @@ import { useEffect, useRef } from "react";
 
 const publisherId = import.meta.env.VITE_ADSENSE_CLIENT || "";
 const publisherIdIsValid = /^ca-pub-\d+$/.test(publisherId);
+const consentManagementIsConfigured =
+  import.meta.env.VITE_ADSENSE_CONSENT_CONFIGURED === "true";
 
 function loadAdSenseScript() {
-  const existingScript = document.querySelector("script[data-adsense-client]");
+  const existingScript =
+    document.querySelector(`script[data-adsense-client="${publisherId}"]`) ||
+    document.querySelector(
+      `script[src^="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${publisherId}"]`,
+    );
   if (existingScript) return;
 
   const script = document.createElement("script");
@@ -20,7 +26,14 @@ export default function AdSenseSlot({ slotId, className = "" }) {
   const slotIsValid = /^\d+$/.test(slotId || "");
 
   useEffect(() => {
-    if (!publisherIdIsValid || !slotIsValid || !adRef.current) return;
+    if (
+      !publisherIdIsValid ||
+      !consentManagementIsConfigured ||
+      !slotIsValid ||
+      !adRef.current
+    ) {
+      return;
+    }
 
     const requestAd = () => {
       if (adRef.current.dataset.adsenseRequested) return;
@@ -48,7 +61,9 @@ export default function AdSenseSlot({ slotId, className = "" }) {
     return () => observer.disconnect();
   }, [slotIsValid]);
 
-  if (!publisherIdIsValid || !slotIsValid) return null;
+  if (!publisherIdIsValid || !consentManagementIsConfigured || !slotIsValid) {
+    return null;
+  }
 
   return (
     <aside className={`mx-auto max-w-[1100px] px-5 sm:px-8 ${className}`} aria-label="Advertisement">

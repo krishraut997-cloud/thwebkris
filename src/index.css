@@ -17,22 +17,7 @@
   scroll-behavior: smooth;
 }
 
-html[data-style="premium"] {
-  --color-paper: #f6f5f0;
-  --color-ink: #20211f;
-  --color-muted: #777871;
-  --color-accent: #b5d943;
-}
-
-html[data-style="khatra"] {
-  --color-paper: #f2f6e3;
-  --color-ink: #202b12;
-  --color-muted: #626d4c;
-  --color-accent: #a7d72f;
-}
-
 body {
-  min-width: 320px;
   margin: 0;
   background: var(--color-paper);
   color: var(--color-ink);
@@ -70,25 +55,21 @@ body {
   }
 }
 
-html[data-style="clean-motion"] .motion-card {
+.motion-card {
   transform-style: preserve-3d;
   transition:
     transform 280ms cubic-bezier(0.2, 0.7, 0.2, 1),
     box-shadow 280ms ease;
 }
 
-html[data-style="clean-motion"] .game-card-enter {
+.game-card-enter {
   animation: games-enter 560ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
   animation-delay: var(--card-delay, 0ms);
 }
 
-html[data-style="clean-motion"] .game-choice-card {
+.game-choice-card {
   background: #fff;
   box-shadow: 0 2px 9px rgb(32 33 31 / 4%);
-}
-
-html[data-style="khatra"] .lime-marquee {
-  border-block-color: var(--color-ink);
 }
 
 .nav-link {
@@ -152,7 +133,7 @@ html[data-style="khatra"] .lime-marquee {
   transform: translate3d(0, 0, 0);
 }
 
-html[data-style="clean-motion"] .motion-card:hover {
+.motion-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 16px 34px rgb(32 33 31 / 12%);
 }

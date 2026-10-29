@@ -19,7 +19,6 @@ import {
   X,
 } from "lucide-react";
 import AdSenseSlot from "./AdSenseSlot.jsx";
-import StyleSwitcher, { useDesignStyle } from "./StyleSwitcher.jsx";
 
 const GamesPage = lazy(() => import("./GamesPage.jsx"));
 const BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -64,7 +63,7 @@ const skillGroups = [
   },
 ];
 
-function Header({ designStyle, setDesignStyle }) {
+function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const closeMenu = () => setMenuOpen(false);
@@ -73,13 +72,13 @@ function Header({ designStyle, setDesignStyle }) {
     <header className="relative z-20">
       <nav
         aria-label="Main navigation"
-        className="mx-auto flex max-w-[1440px] items-center justify-between px-6 py-6 sm:px-10 lg:px-16"
+        className="mx-auto flex max-w-[1440px] items-center justify-between px-5 py-4 sm:px-10 sm:py-6 lg:px-16"
       >
         <a
           href="#home"
           onClick={closeMenu}
           aria-label="Krish Raut, home"
-          className="font-display text-[15px] font-extrabold tracking-[-0.06em]"
+          className="inline-flex min-h-11 min-w-11 items-center font-display text-[15px] font-extrabold tracking-[-0.06em]"
         >
           KR<span className="text-[#829f35]">.</span>
         </a>
@@ -100,34 +99,27 @@ function Header({ designStyle, setDesignStyle }) {
           Get in touch <ArrowUpRight size={14} strokeWidth={1.8} />
         </a>
 
-        <StyleSwitcher
-          value={designStyle}
-          onChange={setDesignStyle}
-          className="hidden xl:inline-flex"
-        />
-
         <button
           type="button"
           aria-label={menuOpen ? "Close menu" : "Open menu"}
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen(!menuOpen)}
-          className="rounded-full p-2 xl:hidden"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full p-2 xl:hidden"
         >
           {menuOpen ? <X size={21} /> : <Menu size={21} />}
         </button>
       </nav>
 
       {menuOpen && (
-        <div className="absolute left-0 right-0 top-full border-y border-ink/10 bg-paper px-6 py-7 shadow-lg xl:hidden">
+        <div className="absolute left-0 right-0 top-full border-y border-ink/10 bg-paper px-5 py-5 shadow-lg xl:hidden">
           <div className="flex flex-col gap-5">
-            <StyleSwitcher value={designStyle} onChange={setDesignStyle} className="w-fit" />
             {[["Work", "#work"], ["Play games", GAMES_PATH], ["Python", "#python-projects"], ["Skills", "#skills"], ["About", "#about"], ["Contact", "#contact"]].map(
               ([label, href]) => (
                 <a
                   key={label}
                   href={href}
                   onClick={closeMenu}
-                  className="font-display text-2xl font-semibold tracking-tight"
+                  className="flex min-h-11 items-center font-display text-2xl font-semibold tracking-tight"
                 >
                   {label}
                 </a>
@@ -136,7 +128,7 @@ function Header({ designStyle, setDesignStyle }) {
             <a
               href="#contact"
               onClick={closeMenu}
-              className="mt-1 flex items-center gap-2 text-sm font-semibold"
+              className="mt-1 flex min-h-11 items-center gap-2 text-sm font-semibold"
             >
               Get in touch <ArrowUpRight size={16} />
             </a>
@@ -151,7 +143,7 @@ function Hero() {
   return (
     <section
       id="home"
-      className="relative mx-auto flex min-h-[650px] max-w-[1440px] flex-col px-6 pb-10 pt-12 sm:px-10 sm:pt-16 md:min-h-[700px] lg:min-h-[790px] lg:px-16 lg:pt-24"
+      className="relative mx-auto flex min-h-[580px] max-w-[1440px] flex-col px-5 pb-8 pt-8 sm:min-h-[700px] sm:px-10 sm:pb-10 sm:pt-16 lg:min-h-[790px] lg:px-16 lg:pt-24"
     >
       <div className="grid flex-1 items-center gap-5 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10">
         <div className="relative z-10 pb-2" data-reveal>
@@ -162,7 +154,7 @@ function Hero() {
             </span>
             Frontend developer · Python learner
           </div>
-          <h1 className="max-w-[740px] font-display text-[clamp(3.75rem,8vw,7.4rem)] font-medium leading-[0.91] tracking-[-0.085em]">
+          <h1 className="max-w-[740px] font-display text-[clamp(3.25rem,12vw,7.4rem)] font-medium leading-[0.91] tracking-[-0.085em]">
             Hi, I&apos;m
             <br />
             Krish{" "}
@@ -183,22 +175,22 @@ function Hero() {
               </svg>
             </span>
           </h1>
-          <p className="mt-8 max-w-[420px] text-[15px] leading-7 text-muted sm:text-base">
+          <p className="mt-6 max-w-[420px] text-sm leading-6 text-muted sm:mt-8 sm:text-base sm:leading-7">
             I build clean, responsive web experiences with React while learning
             Python through practical projects. I enjoy making games and interfaces
             that feel simple, useful, and polished.
           </p>
-          <div className="mt-9 flex flex-wrap items-center gap-5">
+          <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3 sm:mt-9">
             <a href="#work" className="button-primary">
               View my projects <ArrowDownRight size={16} strokeWidth={1.8} />
             </a>
-            <a href="#contact" className="text-xs font-medium text-muted hover:text-ink">
+            <a href="#contact" className="inline-flex min-h-11 items-center text-xs font-medium text-muted hover:text-ink">
               Say hello <ArrowUpRight className="ml-1 inline" size={13} />
             </a>
           </div>
         </div>
 
-        <div className="hero-art relative mx-auto h-[280px] w-full max-w-[490px] sm:h-[330px] lg:h-[500px]" data-reveal>
+        <div className="hero-art relative mx-auto mt-3 h-[250px] w-full max-w-[490px] sm:mt-0 sm:h-[330px] lg:h-[500px]" data-reveal>
           <div className="absolute right-[5%] top-[1%] h-[82%] w-[78%] overflow-hidden rounded-[48%_48%_8px_8px] bg-[#d7d4c8]">
             <img
               loading="eager"
@@ -232,7 +224,7 @@ function Hero() {
         </div>
       </div>
 
-      <div className="mt-8 flex items-center justify-between border-t border-ink/10 pt-5 text-[9px] font-semibold uppercase tracking-[0.1em] text-muted sm:text-[11px] sm:tracking-[0.16em]">
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-ink/10 pt-4 text-[9px] font-semibold uppercase tracking-[0.08em] text-muted sm:mt-8 sm:pt-5 sm:text-[11px] sm:tracking-[0.16em]">
         <span>Frontend development</span>
         <span className="hidden sm:inline">React · JavaScript · Tailwind CSS</span>
         <span>Thoughtful digital experiences</span>
@@ -273,7 +265,7 @@ function SectionHeading({ eyebrow, title, description }) {
 
 function Work() {
   return (
-    <section id="work" className="bg-white/55 px-6 py-24 sm:px-10 lg:px-16 lg:py-32">
+    <section id="work" className="bg-white/55 px-5 py-16 sm:px-10 sm:py-24 lg:px-16 lg:py-32">
       <div className="mx-auto max-w-[1312px]">
         <SectionHeading
           eyebrow="Built & playable"
@@ -346,7 +338,7 @@ const pythonProjects = [
 
 function PythonProjects() {
   return (
-    <section id="python-projects" className="bg-white/55 px-6 py-24 sm:px-10 lg:px-16 lg:py-32">
+    <section id="python-projects" className="bg-white/55 px-5 py-16 sm:px-10 sm:py-24 lg:px-16 lg:py-32">
       <div className="mx-auto max-w-[1312px]">
         <SectionHeading
           eyebrow="Python · GitHub"
@@ -401,7 +393,7 @@ function PythonProjects() {
 
 function Skills() {
   return (
-    <section id="skills" className="bg-[#eaeae2] px-6 py-24 sm:px-10 lg:px-16 lg:py-32">
+    <section id="skills" className="bg-[#eaeae2] px-5 py-16 sm:px-10 sm:py-24 lg:px-16 lg:py-32">
       <div className="mx-auto max-w-[1312px]">
         <SectionHeading
           eyebrow="My toolkit"
@@ -435,7 +427,7 @@ function Skills() {
 
 function About() {
   return (
-    <section id="about" className="px-6 py-24 sm:px-10 lg:px-16 lg:py-32">
+    <section id="about" className="px-5 py-16 sm:px-10 sm:py-24 lg:px-16 lg:py-32">
       <div className="mx-auto grid max-w-[1312px] gap-12 lg:grid-cols-[0.88fr_1.12fr] lg:gap-24">
         <div className="relative min-h-[300px] overflow-hidden rounded-sm bg-[#d8d5c9] sm:min-h-[420px]" data-reveal>
           <img
@@ -471,7 +463,7 @@ function About() {
           </div>
           <a
             href="#contact"
-            className="mt-8 inline-flex w-fit items-center gap-2 border-b border-ink pb-2 text-xs font-semibold transition-colors hover:border-[#8ea93b] hover:text-[#71862f]"
+            className="mt-8 inline-flex min-h-11 w-fit items-center gap-2 border-b border-ink text-xs font-semibold transition-colors hover:border-[#8ea93b] hover:text-[#71862f]"
           >
             Get in touch <ArrowRight size={15} />
           </a>
@@ -483,7 +475,7 @@ function About() {
 
 function Contact() {
   return (
-    <footer id="contact" className="bg-ink px-6 pb-7 pt-20 text-paper sm:px-10 lg:px-16 lg:pt-28">
+    <footer id="contact" className="bg-ink px-5 pb-7 pt-16 text-paper sm:px-10 sm:pt-20 lg:px-16 lg:pt-28">
       <div className="mx-auto max-w-[1312px]">
         <div className="grid gap-10 pb-16 lg:grid-cols-[1fr_0.8fr] lg:items-end lg:gap-16 lg:pb-24" data-reveal>
           <div>
@@ -533,17 +525,17 @@ function Contact() {
           </div>
         </div>
         <div className="flex flex-col justify-between gap-5 border-t border-paper/15 pt-5 text-[10px] text-paper/55 sm:flex-row sm:items-center">
-          <a href="#home" className="font-display text-sm font-extrabold tracking-[-0.06em] text-paper">
+          <a href="#home" className="inline-flex min-h-11 min-w-11 items-center font-display text-sm font-extrabold tracking-[-0.06em] text-paper">
             KR<span className="text-[#b5d943]">.</span>
           </a>
-          <nav aria-label="Site information" className="flex flex-wrap gap-x-4 gap-y-2">
-            <a href="./about.html" className="transition-colors hover:text-paper">About</a>
-            <a href="./contact.html" className="transition-colors hover:text-paper">Contact</a>
-            <a href="./privacy-policy.html" className="transition-colors hover:text-paper">Privacy</a>
-            <a href="./terms.html" className="transition-colors hover:text-paper">Terms</a>
+          <nav aria-label="Site information" className="flex flex-wrap gap-x-4 gap-y-1">
+            <a href="./about.html" className="inline-flex min-h-11 min-w-11 items-center transition-colors hover:text-paper">About</a>
+            <a href="./contact.html" className="inline-flex min-h-11 min-w-11 items-center transition-colors hover:text-paper">Contact</a>
+            <a href="./privacy-policy.html" className="inline-flex min-h-11 min-w-11 items-center transition-colors hover:text-paper">Privacy</a>
+            <a href="./terms.html" className="inline-flex min-h-11 min-w-11 items-center transition-colors hover:text-paper">Terms</a>
           </nav>
           <p>© {new Date().getFullYear()} Krish Raut. Built with React & Tailwind CSS.</p>
-          <a href="#home" className="transition-colors hover:text-paper">Back to top ↑</a>
+          <a href="#home" className="inline-flex min-h-11 min-w-11 items-center transition-colors hover:text-paper">Back to top ↑</a>
         </div>
       </div>
     </footer>
@@ -552,7 +544,6 @@ function Contact() {
 
 function handleMotionCardPointerMove(event) {
   if (
-    document.documentElement.dataset.style !== "clean-motion" ||
     event.pointerType === "touch" ||
     window.matchMedia("(prefers-reduced-motion: reduce)").matches
   ) {
@@ -571,7 +562,6 @@ function handleMotionCardPointerLeave(event) {
 }
 
 export default function App() {
-  const [designStyle, setDesignStyle] = useDesignStyle();
   const requestedRoute = new URLSearchParams(window.location.search).get("route");
   if (requestedRoute) {
     const routeUrl = new URL(requestedRoute, window.location.origin);
@@ -623,14 +613,14 @@ export default function App() {
   if (isGamesPage) {
     return (
       <Suspense fallback={<main className="min-h-screen bg-paper px-5 py-16 text-center text-sm text-muted">Loading games…</main>}>
-        <GamesPage designStyle={designStyle} setDesignStyle={setDesignStyle} />
+        <GamesPage />
       </Suspense>
     );
   }
 
   return (
     <>
-      <Header designStyle={designStyle} setDesignStyle={setDesignStyle} />
+      <Header />
       <main>
         <Hero />
         <LimeMarquee />

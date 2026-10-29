@@ -6,8 +6,8 @@
 
 A personal portfolio and small collection of playable browser games. The score API is built in Python and verifies completed game sessions before saving leaderboard results.
 
-The site defaults to **Clean + motion**, with Premium and Khatra styles available
-in the style switcher. Weekly and all-time leaderboards update automatically.
+The site uses a clean white design with subtle motion. Weekly and all-time
+leaderboards update automatically.
 
 ## Tech stack
 
@@ -48,3 +48,7 @@ in the style switcher. Weekly and all-time leaderboards update automatically.
    ```
 
 See [FIREBASE_SETUP.md](./FIREBASE_SETUP.md) for authentication and production database configuration.
+
+See [ADSENSE_SETUP.md](./ADSENSE_SETUP.md) for AdSense hosting, publisher,
+consent, and deployment requirements. Ad loading remains disabled until
+consent setup is confirmed in the deployment configuration.

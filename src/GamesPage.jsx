@@ -39,7 +39,6 @@ import {
 } from "./contextModel.js";
 import AdSenseSlot from "./AdSenseSlot.jsx";
 import { gamePages } from "./gameMeta.js";
-import StyleSwitcher from "./StyleSwitcher.jsx";
 
 const HOME_PATH = import.meta.env.BASE_URL;
 const GameScoreContext = createContext(null);
@@ -119,16 +118,16 @@ function GameDashboard({
   const rankedIds = getRankedPlayerIds(players);
   const recentPlayers = gameData.weeklyPlayers.slice(0, 5);
   return (
-    <section className="mt-8 rounded-xl border border-ink/10 bg-white/80 p-4 shadow-sm sm:p-6" aria-label="Game leaderboard">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <section className="mt-6 rounded-xl border border-ink/10 bg-white p-3 shadow-sm sm:mt-8 sm:p-6" aria-label="Game leaderboard">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div>
           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-muted">
             <Trophy size={15} className="text-[#829f35]" /> Game dashboard
           </div>
           <h2 className="mt-2 font-display text-2xl font-semibold tracking-[-0.06em]">Players & rankings</h2>
-          <p className="mt-1 text-[11px] text-muted">Sign in with Google to save your profile and scores in the Python game tracker.</p>
+          <p className="mt-1 max-w-prose text-xs leading-5 text-muted sm:text-[11px]">Sign in with Google to save your profile and scores in the Python game tracker.</p>
         </div>
-        <span className="inline-flex items-center gap-2 rounded-full bg-[#eaeae2] px-3 py-2 text-[10px] font-medium text-muted" aria-live="polite">
+        <span className="inline-flex min-h-9 w-fit items-center gap-2 rounded-full bg-[#eaeae2] px-3 py-2 text-[10px] font-medium text-muted" aria-live="polite">
           <span className="relative flex h-2 w-2">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#829f35] opacity-40" />
             <span className="relative h-2 w-2 rounded-full bg-[#829f35]" />
@@ -215,7 +214,7 @@ function GameDashboard({
       </p>
 
       <div className="mt-5">
-        <section className="rounded-lg border border-ink/10 bg-[#f8f8f5] p-4" aria-labelledby="weekly-leaderboard-title">
+        <section className="rounded-lg border border-ink/10 bg-[#f8f8f5] p-3 sm:p-4" aria-labelledby="weekly-leaderboard-title">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h3 id="weekly-leaderboard-title" className="text-sm font-semibold">Top players this week</h3>
@@ -226,10 +225,10 @@ function GameDashboard({
           {recentPlayers.length ? (
             <ol className="mt-3 divide-y divide-ink/5">
               {recentPlayers.map((player, index) => (
-                <li key={player.id} className="grid grid-cols-[32px_1fr_auto] items-center gap-2 py-2.5 text-xs">
+                <li key={player.id} className="grid grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-2 py-3 text-[11px] sm:grid-cols-[32px_1fr_auto] sm:text-xs">
                   <span className="font-display font-bold text-[#71862f]">{index === 0 ? <Award size={16} /> : `#${index + 1}`}</span>
                   <span className="truncate font-medium">{player.name}{player.id === authUser?.uid && <span className="ml-2 text-[9px] text-[#71862f]">YOU</span>}</span>
-                  <span className="font-semibold">{player.points} pts · {player.gamesPlayed} {player.gamesPlayed === 1 ? "game" : "games"}</span>
+                  <span className="text-right font-semibold tabular-nums">{player.points} pts · {player.gamesPlayed} {player.gamesPlayed === 1 ? "game" : "games"}</span>
                 </li>
               ))}
             </ol>
@@ -241,8 +240,8 @@ function GameDashboard({
         </section>
       </div>
 
-      <details className="mt-5 rounded-lg border border-ink/10 bg-[#f8f8f5]">
-        <summary className="cursor-pointer px-3 py-2.5 text-[11px] font-semibold">All-time leaderboard</summary>
+      <details className="mt-4 rounded-lg border border-ink/10 bg-[#f8f8f5] sm:mt-5">
+        <summary className="min-h-11 cursor-pointer px-3 py-3 text-[11px] font-semibold">All-time leaderboard</summary>
       {rankedIds.length === 0 ? (
         <div className="m-3 rounded-lg border border-dashed border-ink/15 px-4 py-6 text-center">
           <UserRound size={20} className="mx-auto text-[#829f35]" />
@@ -250,8 +249,8 @@ function GameDashboard({
           <p className="mt-1 text-[10px] text-muted">Play games to earn points and climb the ranks.</p>
         </div>
       ) : (
-        <div className="m-3 overflow-hidden rounded-lg border border-ink/10">
-          <div className="grid grid-cols-[48px_1fr_75px_65px] gap-2 bg-[#f8f8f5] px-3 py-2.5 text-[9px] font-semibold uppercase tracking-wide text-muted sm:grid-cols-[60px_1fr_100px_90px] sm:px-4">
+        <div className="m-2 overflow-hidden rounded-lg border border-ink/10 sm:m-3">
+          <div className="grid grid-cols-[34px_minmax(0,1fr)_48px_44px] gap-1.5 bg-[#f8f8f5] px-2 py-3 text-[8px] font-semibold uppercase tracking-wide text-muted sm:grid-cols-[60px_1fr_100px_90px] sm:gap-2 sm:px-4 sm:text-[9px]">
             <span>Rank</span><span>Player</span><span className="text-right">Points</span><span className="text-right">Games</span>
           </div>
           <ol>
@@ -259,7 +258,7 @@ function GameDashboard({
               const player = gameData.players[id];
               const rank = rankedIds.indexOf(id);
               return (
-                <li key={id} className={`grid grid-cols-[48px_1fr_75px_65px] items-center gap-2 border-t border-ink/5 px-3 py-3 text-xs sm:grid-cols-[60px_1fr_100px_90px] sm:px-4 ${id === authUser?.uid ? "bg-[#f3f6eb]" : "bg-white"}`}>
+                <li key={id} className={`grid grid-cols-[34px_minmax(0,1fr)_48px_44px] items-center gap-1.5 border-t border-ink/5 px-2 py-3 text-[11px] sm:grid-cols-[60px_1fr_100px_90px] sm:gap-2 sm:px-4 sm:text-xs ${id === authUser?.uid ? "bg-[#f3f6eb]" : "bg-white"}`}>
                   <span className={`font-display font-bold ${rank === 0 ? "text-[#829f35]" : "text-muted"}`}>
                     {rank < 0 ? "—" : rank === 0 ? <Award size={16} /> : `#${rank + 1}`}
                   </span>
@@ -274,14 +273,14 @@ function GameDashboard({
       )}
       </details>
       <details className="mt-3 rounded-lg border border-ink/10 bg-[#f8f8f5]">
-        <summary className="cursor-pointer px-3 py-2.5 text-[10px] font-semibold">How points work</summary>
+        <summary className="min-h-11 cursor-pointer px-3 py-3 text-[10px] font-semibold">How points work</summary>
         <ul className="space-y-1.5 border-t border-ink/10 px-3 py-2.5 text-[10px] leading-5 text-muted">
           <li>Every verified win adds 10 points; every verified loss subtracts 10; draws change points by 0.</li>
           <li>Only signed-in solo games and Tic-tac-toe vs AI update the leaderboard.</li>
           <li>Players are ranked from highest points to lowest. Equal scores use wins, games played, then player name.</li>
         </ul>
       </details>
-      <p className="mt-2 text-[10px] text-muted">Weekly and all-time scores refresh every five seconds. Weekly points cover the last seven days; all-time totals never reset.</p>
+      <p className="mt-2 text-[10px] leading-5 text-muted">Weekly and all-time scores refresh every five seconds. Weekly points cover the last seven days; all-time totals never reset.</p>
     </section>
   );
 }
@@ -820,7 +819,7 @@ function TicTacToe() {
                   : `Player ${nextPlayer}’s turn`}
         </p>
         <details className="mt-4 max-w-[360px] rounded-lg border border-ink/10 bg-white text-left">
-          <summary className="cursor-pointer list-none px-4 py-3 text-xs font-semibold marker:hidden">
+          <summary className="min-h-11 cursor-pointer list-none px-4 py-3 text-xs font-semibold marker:hidden">
             How to play <span className="float-right text-muted">＋</span>
           </summary>
           <ol className="space-y-2 border-t border-ink/10 px-4 py-3 text-[11px] leading-5 text-muted">
@@ -1087,7 +1086,7 @@ function ContextGuessGame() {
       </div>
 
       <details className="mt-4 rounded-lg border border-ink/10 bg-white/70">
-        <summary className="cursor-pointer px-4 py-3 text-xs font-semibold">How ranking works</summary>
+        <summary className="min-h-11 cursor-pointer px-4 py-3 text-xs font-semibold">How ranking works</summary>
         <p className="border-t border-ink/10 px-4 py-3 text-[11px] leading-5 text-muted">
           Guesses are ranked by cosine similarity to the mystery word using a pretrained MiniLM semantic model and this game's {CONTEXT_VOCABULARY_SIZE.toLocaleString()}-word English vocabulary. Words outside the vocabulary show #{CONTEXT_UNLISTED_RANK.toLocaleString()}+. This is an original implementation and does not use Contexto's proprietary word list or model.
         </p>
@@ -1332,7 +1331,7 @@ function NumberGuessGame() {
       </div>
 
       <details className="mt-4 rounded-lg border border-ink/10 bg-white/70">
-        <summary className="cursor-pointer px-4 py-3 text-xs font-semibold">See the Python code</summary>
+        <summary className="min-h-11 cursor-pointer px-4 py-3 text-xs font-semibold">See the Python code</summary>
         <pre className="overflow-x-auto border-t border-ink/10 px-4 py-4 text-[11px] leading-5 text-muted"><code>{pythonGuessingGame.trim()}</code></pre>
       </details>
       <p className="mt-3 text-center text-[10px] leading-5 text-muted">
@@ -1342,7 +1341,7 @@ function NumberGuessGame() {
   );
 }
 
-export default function GamesPage({ designStyle, setDesignStyle }) {
+export default function GamesPage() {
   const pathSlug = window.location.pathname.replace(/\/+$/, "").split("/").pop();
   const currentGame = gamePages.find((game) => game.slug === pathSlug);
   const [activeGame] = useState(currentGame?.id || "memory");
@@ -1475,22 +1474,16 @@ export default function GamesPage({ designStyle, setDesignStyle }) {
     <div className="min-h-screen bg-paper text-ink">
       <header className="border-b border-ink/10">
         <nav className="mx-auto flex max-w-[1100px] items-center justify-between px-5 py-5 sm:px-8">
-          <a href={HOME_PATH} className="font-display text-sm font-extrabold tracking-[-0.06em]">
+          <a href={HOME_PATH} className="inline-flex min-h-11 min-w-11 items-center font-display text-sm font-extrabold tracking-[-0.06em]">
             KR<span className="text-[#829f35]">.</span>
           </a>
-          <div className="flex items-center gap-3">
-            <StyleSwitcher value={designStyle} onChange={setDesignStyle} className="hidden sm:inline-flex" />
-            <a href={HOME_PATH} className="inline-flex min-h-11 items-center gap-2 text-xs font-semibold text-muted transition hover:text-ink">
-              <ArrowLeft size={14} /> Back to portfolio
-            </a>
-          </div>
+          <a href={HOME_PATH} className="inline-flex min-h-11 items-center gap-2 text-xs font-semibold text-muted transition hover:text-ink">
+            <ArrowLeft size={14} /> Back to portfolio
+          </a>
         </nav>
-        <div className="flex justify-end px-5 pb-3 sm:hidden">
-          <StyleSwitcher value={designStyle} onChange={setDesignStyle} />
-        </div>
       </header>
 
-      <main className="mx-auto max-w-[1100px] px-5 pb-16 pt-12 sm:px-8 sm:pt-16">
+      <main className="mx-auto max-w-[1100px] px-4 pb-12 pt-7 sm:px-8 sm:pb-16 sm:pt-16">
         <GameScoreContext.Provider value={scoreContext}>
           <section className="games-enter">
             {currentGame ? (
@@ -1502,7 +1495,7 @@ export default function GamesPage({ designStyle, setDesignStyle }) {
                   <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted">
                     <Gamepad2 size={15} className="text-[#829f35]" /> Browser game
                   </div>
-                  <h1 className="mt-4 font-display text-5xl font-medium leading-[0.96] tracking-[-0.08em] sm:text-7xl">
+                  <h1 className="mt-4 font-display text-[clamp(2.75rem,11vw,4.5rem)] font-medium leading-[0.96] tracking-[-0.08em]">
                     {currentGame.title}
                   </h1>
                   <p className="mt-5 max-w-lg text-base leading-7 text-muted">
@@ -1527,14 +1520,14 @@ export default function GamesPage({ designStyle, setDesignStyle }) {
                 <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted">
                   <Gamepad2 size={15} className="text-[#829f35]" /> A little break
                 </div>
-                <div className="mt-4 flex flex-wrap items-end justify-between gap-5">
+                <div className="mt-4 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end sm:gap-5">
                   <div>
-                    <h1 className="font-display text-5xl font-medium leading-[0.96] tracking-[-0.08em] sm:text-7xl">
+                    <h1 className="font-display text-[clamp(2.75rem,11vw,4.5rem)] font-medium leading-[0.96] tracking-[-0.08em]">
                       Play a little.
                       <br />
                       <span className="text-[#829f35]">Think a lot.</span>
                     </h1>
-                    <p className="mt-5 max-w-lg text-sm leading-6 text-muted">
+                    <p className="mt-4 max-w-lg text-sm leading-6 text-muted sm:mt-5">
                       A small collection of browser games you can play without an account. Sign in only if you want a leaderboard profile.
                     </p>
                   </div>
@@ -1582,7 +1575,7 @@ export default function GamesPage({ designStyle, setDesignStyle }) {
             </div>
           </section>
 
-          <section className="games-enter mt-6 rounded-xl border border-ink/10 bg-white/80 p-4 shadow-sm sm:p-7" aria-label={`${activeGameOption.title} game board`}>
+          <section className="games-enter mt-6 rounded-xl border border-ink/10 bg-white p-3 shadow-sm sm:p-7" aria-label={`${activeGameOption.title} game board`}>
             {activeGame === "memory"
               ? <MemoryGame key={`memory-${profile ? authUser.uid : "guest"}`} />
               : activeGame === "tic-tac-toe"
@@ -1597,13 +1590,13 @@ export default function GamesPage({ designStyle, setDesignStyle }) {
 
         <footer className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-ink/10 pt-5 text-[10px] text-muted">
           <span>Made for fun by Krish Raut.</span>
-          <nav aria-label="Site information" className="flex flex-wrap gap-x-4 gap-y-2">
-            <a href={`${HOME_PATH}about.html`} className="transition hover:text-ink">About</a>
-            <a href={`${HOME_PATH}contact.html`} className="transition hover:text-ink">Contact</a>
-            <a href={`${HOME_PATH}privacy-policy.html`} className="transition hover:text-ink">Privacy</a>
-            <a href={`${HOME_PATH}terms.html`} className="transition hover:text-ink">Terms</a>
+          <nav aria-label="Site information" className="flex flex-wrap gap-x-4 gap-y-1">
+            <a href={`${HOME_PATH}about.html`} className="inline-flex min-h-11 min-w-11 items-center transition hover:text-ink">About</a>
+            <a href={`${HOME_PATH}contact.html`} className="inline-flex min-h-11 min-w-11 items-center transition hover:text-ink">Contact</a>
+            <a href={`${HOME_PATH}privacy-policy.html`} className="inline-flex min-h-11 min-w-11 items-center transition hover:text-ink">Privacy</a>
+            <a href={`${HOME_PATH}terms.html`} className="inline-flex min-h-11 min-w-11 items-center transition hover:text-ink">Terms</a>
           </nav>
-          <a href={HOME_PATH} className="font-semibold transition hover:text-ink">Back to portfolio ↗</a>
+          <a href={HOME_PATH} className="inline-flex min-h-11 min-w-11 items-center font-semibold transition hover:text-ink">Back to portfolio ↗</a>
         </footer>
       </main>
     </div>
@@ -1612,7 +1605,6 @@ export default function GamesPage({ designStyle, setDesignStyle }) {
 
 function handleGameCardPointerMove(event) {
   if (
-    document.documentElement.dataset.style !== "clean-motion" ||
     event.pointerType === "touch" ||
     window.matchMedia("(prefers-reduced-motion: reduce)").matches
   ) {

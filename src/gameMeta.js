@@ -40,5 +40,3 @@ export const gamePages = [
     metaDescription: "Play Context Guess by Krish Raut, a free semantic word puzzle. Follow meaning and ranks to find the hidden word.",
   },
 ];
-
-export const siteOrigin = "https://krishraut997-cloud.github.io";
