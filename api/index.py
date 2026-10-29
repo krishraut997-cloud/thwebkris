@@ -135,7 +135,7 @@ def require_uid(request: Request) -> str:
 @app.get("/api")
 def health_check(request: Request):
     if request.query_params.get("view") == "dashboard":
-        return dashboard(request)
+        return dashboard()
 
     try:
         get_store()
@@ -149,12 +149,9 @@ def health_check(request: Request):
 
 @app.get("/api/dashboard")
 @app.get("/dashboard")
-def dashboard(request: Request):
+def dashboard():
     try:
-        uid = require_uid(request)
-        return get_store().get_dashboard(uid)
-    except HTTPException:
-        raise
+        return get_store().get_dashboard()
     except (OSError, *DATABASE_ERRORS) as error:
         raise HTTPException(
             status_code=503,

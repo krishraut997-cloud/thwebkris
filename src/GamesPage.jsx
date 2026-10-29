@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import {
+  Award,
   ArrowLeft,
   ArrowUpRight,
   Asterisk,
@@ -41,6 +42,17 @@ import AdSenseSlot from "./AdSenseSlot.jsx";
 const HOME_PATH = import.meta.env.BASE_URL;
 const GameScoreContext = createContext(null);
 
+function getRankedPlayerIds(players) {
+  return Object.entries(players)
+    .sort(([, first], [, second]) =>
+      second.points - first.points ||
+      second.wins - first.wins ||
+      second.gamesPlayed - first.gamesPlayed ||
+      first.name.localeCompare(second.name),
+    )
+    .map(([id]) => id);
+}
+
 function getSignInErrorMessage(error) {
   if (error?.code === "auth/unauthorized-domain") {
     const hostname = window.location.hostname;
@@ -80,19 +92,20 @@ function GameDashboard({
     }
   }
 
-  const player = authUser ? gameData.players[authUser.uid] : null;
+  const players = gameData.players;
+  const rankedIds = getRankedPlayerIds(players);
   return (
-    <section className="mt-8 rounded-xl border border-ink/10 bg-white/80 p-4 shadow-sm sm:p-6" aria-label="Personal game dashboard">
+    <section className="mt-8 rounded-xl border border-ink/10 bg-white/80 p-4 shadow-sm sm:p-6" aria-label="Game leaderboard">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-muted">
             <Trophy size={15} className="text-[#829f35]" /> Game dashboard
           </div>
-          <h2 className="mt-2 font-display text-2xl font-semibold tracking-[-0.06em]">Your game stats</h2>
-          <p className="mt-1 text-[11px] text-muted">Your score and game history are private to your account.</p>
+          <h2 className="mt-2 font-display text-2xl font-semibold tracking-[-0.06em]">Players & rankings</h2>
+          <p className="mt-1 text-[11px] text-muted">Sign in with Google to save your profile and scores in the Python game tracker.</p>
         </div>
         <span className="rounded-full bg-[#eaeae2] px-3 py-2 text-[10px] font-medium text-muted">
-          Private dashboard
+          Live leaderboard
         </span>
       </div>
 
@@ -150,47 +163,49 @@ function GameDashboard({
 
       {!profile && nameError && <p role="alert" className="mt-2 text-[11px] text-red-700">{nameError}</p>}
       {gameData.error && <p role="alert" className="mt-2 text-[11px] text-red-700">{gameData.error}</p>}
-      {gameData.loading && authUser && <p className="mt-3 text-[11px] text-muted">Loading your game stats…</p>}
+      {gameData.loading && <p className="mt-3 text-[11px] text-muted">Loading the leaderboard…</p>}
       <p className="mt-2 text-[10px] leading-5 text-muted">
-        Player names are unique. Only you can see your score and verified game records.
+        Player names are unique. Google sign-in reconnects your profile on the same Python score server.
       </p>
 
-      {!authUser ? (
+      {rankedIds.length === 0 ? (
         <div className="mt-5 rounded-lg border border-dashed border-ink/15 px-4 py-6 text-center">
           <UserRound size={20} className="mx-auto text-[#829f35]" />
-          <p className="mt-2 text-xs font-medium">Sign in to see your personal game stats.</p>
-          <p className="mt-1 text-[10px] text-muted">Other players’ scores and game records are never shown here.</p>
-        </div>
-      ) : !player ? (
-        <div className="mt-5 rounded-lg border border-dashed border-ink/15 px-4 py-6 text-center">
-          <UserRound size={20} className="mx-auto text-[#829f35]" />
-          <p className="mt-2 text-xs font-medium">Create your player profile to start tracking your scores.</p>
+          <p className="mt-2 text-xs font-medium">Sign in and create a player profile to join the leaderboard.</p>
+          <p className="mt-1 text-[10px] text-muted">Play games to earn points and climb the ranks.</p>
         </div>
       ) : (
         <div className="mt-5 overflow-hidden rounded-lg border border-ink/10">
-          <div className="grid grid-cols-[1fr_75px_65px] gap-2 bg-[#f8f8f5] px-3 py-2.5 text-[9px] font-semibold uppercase tracking-wide text-muted sm:grid-cols-[1fr_100px_90px] sm:px-4">
-            <span>Player</span><span className="text-right">Points</span><span className="text-right">Games</span>
+          <div className="grid grid-cols-[48px_1fr_75px_65px] gap-2 bg-[#f8f8f5] px-3 py-2.5 text-[9px] font-semibold uppercase tracking-wide text-muted sm:grid-cols-[60px_1fr_100px_90px] sm:px-4">
+            <span>Rank</span><span>Player</span><span className="text-right">Points</span><span className="text-right">Games</span>
           </div>
           <ol>
-            <li className="grid grid-cols-[1fr_75px_65px] items-center gap-2 border-t border-ink/5 bg-[#f3f6eb] px-3 py-3 text-xs sm:grid-cols-[1fr_100px_90px] sm:px-4">
-              <span className="truncate font-medium">{player.name}</span>
-              <span className="text-right font-semibold">{player.points}</span>
-              <span className="text-right text-muted">{player.gamesPlayed}</span>
-            </li>
+            {rankedIds.map((id) => {
+              const player = gameData.players[id];
+              const rank = rankedIds.indexOf(id);
+              return (
+                <li key={id} className={`grid grid-cols-[48px_1fr_75px_65px] items-center gap-2 border-t border-ink/5 px-3 py-3 text-xs sm:grid-cols-[60px_1fr_100px_90px] sm:px-4 ${id === authUser?.uid ? "bg-[#f3f6eb]" : "bg-white"}`}>
+                  <span className={`font-display font-bold ${rank === 0 ? "text-[#829f35]" : "text-muted"}`}>
+                    {rank < 0 ? "—" : rank === 0 ? <Award size={16} /> : `#${rank + 1}`}
+                  </span>
+                  <span className="truncate font-medium">{player.name}{id === authUser?.uid && <span className="ml-2 text-[9px] text-[#71862f]">YOU</span>}</span>
+                  <span className="text-right font-semibold">{player.points}</span>
+                  <span className="text-right text-muted">{player.gamesPlayed}</span>
+                </li>
+              );
+            })}
           </ol>
         </div>
       )}
       <section className="mt-5 overflow-hidden rounded-lg border border-ink/10 bg-white" aria-label="Recent game records">
         <div className="flex items-center justify-between bg-[#f8f8f5] px-3 py-2.5">
-          <h3 className="text-[10px] font-semibold uppercase tracking-wide text-muted">Your recent games</h3>
-          {authUser && <span className="text-[9px] text-muted">Updates as your games finish</span>}
+          <h3 className="text-[10px] font-semibold uppercase tracking-wide text-muted">Live game records</h3>
+          <span className="text-[9px] text-muted">Updates as games finish</span>
         </div>
-        {!authUser ? (
-          <p className="px-3 py-4 text-[11px] text-muted">Sign in to view your private game history.</p>
-        ) : gameData.recordsLoading ? (
-          <p className="px-3 py-4 text-[11px] text-muted">Loading your verified game records…</p>
+        {gameData.recordsLoading ? (
+          <p className="px-3 py-4 text-[11px] text-muted">Loading verified game records…</p>
         ) : gameData.recentRecords.length === 0 ? (
-          <p className="px-3 py-4 text-[11px] text-muted">Your verified wins, losses, and draws will appear here.</p>
+          <p className="px-3 py-4 text-[11px] text-muted">Verified wins, losses, and draws will appear here.</p>
         ) : (
           <ol className="divide-y divide-ink/5">
             {gameData.recentRecords.map((record) => {
@@ -201,7 +216,8 @@ function GameDashboard({
               return (
                 <li key={record.id} className="grid grid-cols-[1fr_auto] items-center gap-3 px-3 py-2.5 text-[11px] sm:grid-cols-[1fr_auto_auto]">
                   <span className="min-w-0 truncate">
-                    <strong className="font-semibold">{record.game}</strong>
+                    <strong className="font-semibold">{record.playerName}</strong>
+                    <span className="text-muted"> · {record.game}</span>
                     <span className="ml-1 capitalize text-muted">· {record.outcome}</span>
                   </span>
                   <span className={`font-semibold ${record.pointsDelta > 0 ? "text-[#5d7326]" : record.pointsDelta < 0 ? "text-red-700" : "text-muted"}`}>
@@ -220,11 +236,11 @@ function GameDashboard({
         <summary className="cursor-pointer px-3 py-2.5 text-[10px] font-semibold">How points work</summary>
         <ul className="space-y-1.5 border-t border-ink/10 px-3 py-2.5 text-[10px] leading-5 text-muted">
           <li>Every verified win adds 10 points; every verified loss subtracts 10; draws change points by 0.</li>
-          <li>Only signed-in solo games and Tic-tac-toe vs AI update your personal score.</li>
-          <li>Your dashboard only shows your own score and game records.</li>
+          <li>Only signed-in solo games and Tic-tac-toe vs AI update the leaderboard.</li>
+          <li>Players are ranked from highest points to lowest. Equal scores use wins, games played, then player name.</li>
         </ul>
       </details>
-      <p className="mt-2 text-[10px] text-muted">Your score and recent game records update live. Score totals never reset.</p>
+      <p className="mt-2 text-[10px] text-muted">Scores, recent game records, and rankings update live. Score totals never reset.</p>
     </section>
   );
 }
@@ -1318,17 +1334,7 @@ export default function GamesPage() {
   }, []);
 
   useEffect(() => {
-    if (authLoading) return undefined;
-    setGameData((current) => ({
-      ...current,
-      players: {},
-      recentRecords: [],
-      loading: Boolean(authUser),
-      recordsLoading: Boolean(authUser),
-      error: "",
-    }));
     return listenToGameDashboard(
-      authUser,
       ({ players, recentRecords }) => {
         setGameData((current) => ({
           ...current,
@@ -1348,7 +1354,7 @@ export default function GamesPage() {
         }));
       },
     );
-  }, [authLoading, authUser]);
+  }, []);
 
   const profile = authUser ? gameData.players[authUser.uid] : null;
 
@@ -1417,7 +1423,7 @@ export default function GamesPage() {
                   <span className="text-[#829f35]">Think a lot.</span>
                 </h1>
                 <p className="mt-5 max-w-lg text-sm leading-6 text-muted">
-                  A small collection of browser games you can play without an account. Sign in to privately track your own scores.
+                  A small collection of browser games you can play without an account. Sign in only if you want a leaderboard profile.
                 </p>
               </div>
               <span className="rounded-full bg-[#eaeae2] px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted">Built with React</span>

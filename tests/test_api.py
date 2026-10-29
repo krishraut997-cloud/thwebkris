@@ -36,10 +36,6 @@ class GameApiTests(unittest.TestCase):
         with patch.object(index, "require_uid", return_value=uid):
             return self.client.post("/api", json=payload)
 
-    def get_as(self, uid, path="/api/dashboard"):
-        with patch.object(index, "require_uid", return_value=uid):
-            return self.client.get(path)
-
     def create_player(self, uid, name):
         response = self.post_as(uid, {"operation": "profile", "name": name})
         self.assertEqual(response.status_code, 200, response.text)
@@ -80,7 +76,7 @@ class GameApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"ready": True, "storage": "sqlite"})
 
-    def test_profile_names_are_unique_and_dashboard_reads_only_own_profile(self):
+    def test_profile_names_are_unique_and_dashboard_reads_sqlite(self):
         first = self.create_player("player-1", "first player")
         self.assertEqual(first["points"], 0)
         self.assertEqual(self.post_as(
@@ -88,7 +84,7 @@ class GameApiTests(unittest.TestCase):
             {"operation": "profile", "name": "first player"},
         ).status_code, 409)
 
-        dashboard = self.get_as("player-1")
+        dashboard = self.client.get("/api/dashboard")
         self.assertEqual(dashboard.status_code, 200)
         self.assertEqual(dashboard.json()["players"], [{
             "id": "player-1",
@@ -100,20 +96,10 @@ class GameApiTests(unittest.TestCase):
 
     def test_dashboard_query_route_is_available_through_api_root(self):
         self.create_player("player-1", "first player")
-        response = self.get_as("player-1", "/api?view=dashboard")
+        response = self.client.get("/api?view=dashboard")
 
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()["players"][0]["id"], "player-1")
-
-    def test_dashboard_requires_authentication_and_hides_other_players(self):
-        self.create_player("player-1", "first player")
-        self.create_player("player-2", "second player")
-
-        self.assertEqual(self.client.get("/api/dashboard").status_code, 401)
-
-        dashboard = self.get_as("player-1").json()
-        self.assertEqual([player["id"] for player in dashboard["players"]], ["player-1"])
-        self.assertEqual(dashboard["recentRecords"], [])
 
     def test_verified_win_and_loss_update_sqlite_dashboard_and_records(self):
         self.create_player("player-1", "player one")
@@ -172,9 +158,9 @@ class GameApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()["scoreDelta"], -10)
         self.assertEqual(response.json()["outcome"], "loss")
-        dashboard = self.get_as("player-1").json()
-        self.assertEqual([player["id"] for player in dashboard["players"]], ["player-1"])
-        player = dashboard["players"][0]
+        dashboard = self.client.get("/api/dashboard").json()
+        self.assertEqual(dashboard["players"][0]["id"], "player-2")
+        player = next(player for player in dashboard["players"] if player["id"] == "player-1")
         self.assertEqual(player["points"], 0)
         self.assertEqual(player["gamesPlayed"], 2)
         self.assertEqual(player["wins"], 1)
@@ -184,12 +170,6 @@ class GameApiTests(unittest.TestCase):
         ]
         self.assertEqual([record["pointsDelta"] for record in player_records], [-10, 10])
         self.assertEqual([record["pointsAfter"] for record in player_records], [0, 10])
-        other_player_dashboard = self.get_as("player-2").json()
-        self.assertEqual([player["id"] for player in other_player_dashboard["players"]], ["player-2"])
-        self.assertTrue(all(
-            record["playerId"] == "player-2"
-            for record in other_player_dashboard["recentRecords"]
-        ))
 
     def test_start_requires_a_player_profile(self):
         response = self.post_as("player-1", {
@@ -217,7 +197,7 @@ class GameApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()["scoreDelta"], 0)
-        dashboard = self.get_as("player-1").json()
+        dashboard = self.client.get("/api/dashboard").json()
         self.assertEqual(dashboard["players"][0]["points"], 0)
         self.assertEqual(dashboard["players"][0]["gamesPlayed"], 1)
         self.assertEqual(dashboard["recentRecords"][0]["outcome"], "draw")
@@ -243,8 +223,7 @@ class GameApiTests(unittest.TestCase):
     def test_serverless_runtime_requires_persistent_database(self):
         index._store = None
         with patch.dict(os.environ, {"VERCEL": "1"}, clear=False):
-            with patch.object(index, "require_uid", return_value="player-1"):
-                response = self.client.get("/api/dashboard")
+            response = self.client.get("/api/dashboard")
         self.assertEqual(response.status_code, 503)
         self.assertIn("persistent Postgres database", response.json()["detail"])
 
