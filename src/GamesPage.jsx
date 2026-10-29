@@ -92,6 +92,7 @@ function GameDashboard({
   profile,
   authLoading,
   profileSaving,
+  trackerStatus,
   setError,
   onSignIn,
   onSignOut,
@@ -130,12 +131,22 @@ function GameDashboard({
           <h2 className="mt-2 font-display text-2xl font-semibold tracking-[-0.06em]">Players & rankings</h2>
           <p className="mt-1 max-w-prose text-xs leading-5 text-muted sm:text-[11px]">Sign in with Google to save your profile and scores in the Python game tracker.</p>
         </div>
-        <span className="inline-flex min-h-9 w-fit items-center gap-2 rounded-full bg-[#eaeae2] px-3 py-2 text-[10px] font-medium text-muted" aria-live="polite">
+        <span
+          className={`inline-flex min-h-9 w-fit items-center gap-2 rounded-full px-3 py-2 text-[10px] font-medium ${
+            trackerStatus.connected ? "bg-[#eef4db] text-[#5d7326]" : "bg-[#eaeae2] text-muted"
+          }`}
+          aria-live="polite"
+          title={trackerStatus.updatedAt ? `Last refreshed ${new Date(trackerStatus.updatedAt).toLocaleTimeString()}` : undefined}
+        >
           <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#829f35] opacity-40" />
-            <span className="relative h-2 w-2 rounded-full bg-[#829f35]" />
+            {trackerStatus.connected && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#829f35] opacity-40" />}
+            <span className={`relative h-2 w-2 rounded-full ${trackerStatus.connected ? "bg-[#829f35]" : "bg-[#99998f]"}`} />
           </span>
-          Live · updates every 5 seconds
+          {trackerStatus.connected
+            ? `Python tracker live · updated ${trackerStatus.updatedAt ? new Date(trackerStatus.updatedAt).toLocaleTimeString() : "now"}`
+            : trackerStatus.error
+              ? "Python tracker offline · retrying"
+              : "Connecting to Python tracker…"}
         </span>
       </div>
 
@@ -1396,6 +1407,11 @@ export default function GamesPage() {
   const [authUser, setAuthUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [profileSaving, setProfileSaving] = useState(false);
+  const [trackerStatus, setTrackerStatus] = useState({
+    connected: false,
+    updatedAt: null,
+    error: "",
+  });
 
   useEffect(() => {
     if (!currentGame) {
@@ -1460,12 +1476,22 @@ export default function GamesPage() {
           loading: false,
           error: "",
         }));
+        setTrackerStatus({
+          connected: true,
+          updatedAt: new Date().toISOString(),
+          error: "",
+        });
       },
       (error) => {
         setGameData((current) => ({
           ...current,
           loading: false,
           error: `Could not load the Python game tracker: ${error.message}`,
+        }));
+        setTrackerStatus((current) => ({
+          ...current,
+          connected: false,
+          error: error.message,
         }));
       },
     );
@@ -1601,6 +1627,7 @@ export default function GamesPage() {
             <GameDashboard
               gameData={gameData}
               privateRecords={privateRecords}
+              trackerStatus={trackerStatus}
               authUser={authUser}
               profile={profile}
               authLoading={authLoading}

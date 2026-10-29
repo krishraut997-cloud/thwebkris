@@ -26,6 +26,31 @@ if (isFirebaseConfigured) {
 const scoreApiBase = (import.meta.env.VITE_SCORE_API_URL || "").replace(/\/+$/, "");
 const trackerUnavailableMessage =
   "Cannot reach the Python game tracker. Start it with `npm run dev:score-api` and try again.";
+const gameUpdateChannel =
+  typeof BroadcastChannel === "undefined"
+    ? null
+    : new BroadcastChannel("python-game-tracker");
+
+function subscribeToGameUpdates(refresh) {
+  const refreshWhenVisible = () => {
+    if (document.visibilityState === "visible") void refresh();
+  };
+  window.addEventListener("game-recorded", refresh);
+  gameUpdateChannel?.addEventListener("message", refresh);
+  document.addEventListener("visibilitychange", refreshWhenVisible);
+  window.addEventListener("online", refresh);
+  return () => {
+    window.removeEventListener("game-recorded", refresh);
+    gameUpdateChannel?.removeEventListener("message", refresh);
+    document.removeEventListener("visibilitychange", refreshWhenVisible);
+    window.removeEventListener("online", refresh);
+  };
+}
+
+function notifyGameRecorded() {
+  window.dispatchEvent(new Event("game-recorded"));
+  gameUpdateChannel?.postMessage({ type: "game-recorded" });
+}
 
 async function fetchPythonApi(url, options) {
   try {
@@ -96,9 +121,11 @@ export function listenToGameDashboard(onDashboard, onError) {
 
   void refresh();
   const timer = window.setInterval(refresh, 5000);
+  const unsubscribe = subscribeToGameUpdates(refresh);
   return () => {
     active = false;
     window.clearInterval(timer);
+    unsubscribe();
   };
 }
 
@@ -120,9 +147,11 @@ export function listenToPlayerRecords(user, onRecords, onError) {
 
   void refresh();
   const timer = window.setInterval(refresh, 5000);
+  const unsubscribe = subscribeToGameUpdates(refresh);
   return () => {
     active = false;
     window.clearInterval(timer);
+    unsubscribe();
   };
 }
 
@@ -140,7 +169,10 @@ export function submitVerifiedGameAction(sessionId, action) {
     "",
     { operation: "action", sessionId, action },
     auth?.currentUser,
-  );
+  ).then((result) => {
+    if (result.outcome) notifyGameRecorded();
+    return result;
+  });
 }
 
 export function createPlayerProfile(user, displayName) {
