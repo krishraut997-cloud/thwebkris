@@ -1,21 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://portfolio-seven-green-mocmyyk3ff.vercel.app/</loc>
+    <loc>https://krishraut997-cloud.github.io/thwebkris/</loc>
   </url>
   <url>
-    <loc>https://portfolio-seven-green-mocmyyk3ff.vercel.app/games</loc>
+    <loc>https://krishraut997-cloud.github.io/thwebkris/games/</loc>
   </url>
   <url>
-    <loc>https://portfolio-seven-green-mocmyyk3ff.vercel.app/about.html</loc>
+    <loc>https://krishraut997-cloud.github.io/thwebkris/games/memory-match/</loc>
   </url>
   <url>
-    <loc>https://portfolio-seven-green-mocmyyk3ff.vercel.app/contact.html</loc>
+    <loc>https://krishraut997-cloud.github.io/thwebkris/games/tic-tac-toe/</loc>
   </url>
   <url>
-    <loc>https://portfolio-seven-green-mocmyyk3ff.vercel.app/privacy-policy.html</loc>
+    <loc>https://krishraut997-cloud.github.io/thwebkris/games/number-guess/</loc>
   </url>
   <url>
-    <loc>https://portfolio-seven-green-mocmyyk3ff.vercel.app/terms.html</loc>
+    <loc>https://krishraut997-cloud.github.io/thwebkris/games/context-guess/</loc>
+  </url>
+  <url>
+    <loc>https://krishraut997-cloud.github.io/thwebkris/about.html</loc>
+  </url>
+  <url>
+    <loc>https://krishraut997-cloud.github.io/thwebkris/contact.html</loc>
+  </url>
+  <url>
+    <loc>https://krishraut997-cloud.github.io/thwebkris/privacy-policy.html</loc>
+  </url>
+  <url>
+    <loc>https://krishraut997-cloud.github.io/thwebkris/terms.html</loc>
   </url>
 </urlset>

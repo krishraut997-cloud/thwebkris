@@ -1,0 +1,44 @@
+export const gamePages = [
+  {
+    id: "memory",
+    slug: "memory-match",
+    title: "Memory Match",
+    hook: "Flip the cards, find every pair, and beat your own move count.",
+    howToPlay: "Turn over two cards at a time. Remember what you see and match all six pairs in as few moves as you can.",
+    shareImage: "game-cards/memory-match.png",
+    previewImage: "game-cards/memory-match.svg",
+    metaDescription: "Play Memory Match by Krish Raut: a quick, free browser puzzle. Find six matching pairs and try to beat your move count.",
+  },
+  {
+    id: "tic-tac-toe",
+    slug: "tic-tac-toe",
+    title: "Tic-tac-toe",
+    hook: "A familiar grid, with an AI opponent or a friend across the table.",
+    howToPlay: "Place three marks in a row before your opponent. Choose the AI for a solo challenge or pass the device for a local two-player match.",
+    shareImage: "game-cards/tic-tac-toe.png",
+    previewImage: "game-cards/tic-tac-toe.svg",
+    metaDescription: "Play Tic-tac-toe by Krish Raut. Challenge the AI or a friend in this free, responsive browser game.",
+  },
+  {
+    id: "number-guess",
+    slug: "number-guess",
+    title: "Number Guess",
+    hook: "Use the clues, choose your difficulty, and find the hidden number.",
+    howToPlay: "Pick a difficulty, enter a number, and follow the higher-or-lower hints before you run out of guesses.",
+    shareImage: "game-cards/number-guess.png",
+    previewImage: "game-cards/number-guess.svg",
+    metaDescription: "Play Number Guess by Krish Raut: four difficulty levels, higher-or-lower hints, and a Python-powered browser game.",
+  },
+  {
+    id: "context-guess",
+    slug: "context-guess",
+    title: "Context Guess",
+    hook: "Follow meaning, not spelling, to discover the hidden word.",
+    howToPlay: "Enter a related word and use its semantic rank to get closer. The warmer the meaning, the nearer you are to today's answer.",
+    shareImage: "game-cards/context-guess.png",
+    previewImage: "game-cards/context-guess.svg",
+    metaDescription: "Play Context Guess by Krish Raut, a free semantic word puzzle. Follow meaning and ranks to find the hidden word.",
+  },
+];
+
+export const siteOrigin = "https://krishraut997-cloud.github.io";

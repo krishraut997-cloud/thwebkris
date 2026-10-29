@@ -4,6 +4,7 @@ import os
 import sqlite3
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
@@ -100,6 +101,41 @@ class GameApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()["players"][0]["id"], "player-1")
+
+    def test_dashboard_weekly_leaderboard_uses_only_the_last_seven_days(self):
+        self.create_player("player-1", "first player")
+        self.create_player("player-2", "second player")
+        now = datetime.now(timezone.utc)
+        records = [
+            ("recent-win", "player-1", "first player", "memory", "win", 10, 10, now.isoformat()),
+            ("recent-loss", "player-1", "first player", "memory", "loss", -10, 0, (now - timedelta(days=1)).isoformat()),
+            ("other-win", "player-2", "second player", "number-guess", "win", 10, 10, (now - timedelta(days=2)).isoformat()),
+            ("old-win", "player-1", "first player", "memory", "win", 10, 10, (now - timedelta(days=8)).isoformat()),
+        ]
+        connection = sqlite3.connect(self.database_path)
+        try:
+            with connection:
+                connection.executemany(
+                    """
+                    INSERT INTO game_records
+                        (id, player_id, player_name, game, outcome,
+                         points_delta, points_after, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    records,
+                )
+        finally:
+            connection.close()
+
+        response = self.client.get("/api/dashboard")
+
+        self.assertEqual(response.status_code, 200, response.text)
+        weekly_players = response.json()["weeklyPlayers"]
+        self.assertEqual([player["id"] for player in weekly_players], ["player-2", "player-1"])
+        self.assertEqual(weekly_players[0]["points"], 10)
+        self.assertEqual(weekly_players[0]["gamesPlayed"], 1)
+        self.assertEqual(weekly_players[1]["points"], 0)
+        self.assertEqual(weekly_players[1]["gamesPlayed"], 2)
 
     def test_verified_win_and_loss_update_sqlite_dashboard_and_records(self):
         self.create_player("player-1", "player one")

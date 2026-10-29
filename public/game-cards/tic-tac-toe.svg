@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
+  <title id="title">Tic-tac-toe — Play by Krish Raut</title>
+  <desc id="description">A browser game preview of a tic-tac-toe board ready for a match.</desc>
+  <rect width="1200" height="630" fill="#f6f5f0"/>
+  <circle cx="1020" cy="75" r="220" fill="#eaeae2"/>
+  <g font-family="Arial, sans-serif" fill="#20211f">
+    <text x="82" y="88" font-size="24" font-weight="700" letter-spacing="5">KR.  /  BROWSER GAMES</text>
+    <text x="82" y="245" font-size="83" font-weight="700" letter-spacing="-5">Tic-tac-toe</text>
+    <text x="86" y="307" font-size="27" fill="#777871">Play the AI or challenge a friend.</text>
+    <text x="86" y="360" font-size="19" fill="#777871">Free to play · Local two-player mode</text>
+  </g>
+  <rect x="750" y="154" width="350" height="350" rx="26" fill="#fff" stroke="#20211f" stroke-opacity=".1" stroke-width="2"/>
+  <g stroke="#d8d5c9" stroke-width="7" stroke-linecap="round">
+    <path d="M866 192v274M982 192v274M788 308h274M788 424h274"/>
+  </g>
+  <g fill="none" stroke="#829f35" stroke-width="12" stroke-linecap="round">
+    <path d="M814 223l59 59m0-59-59 59"/>
+    <circle cx="1020" cy="366" r="37"/>
+    <path d="M814 454l59-59m0 59-59-59"/>
+  </g>
+</svg>

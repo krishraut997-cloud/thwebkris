@@ -38,9 +38,42 @@ import {
   getContextPuzzle,
 } from "./contextModel.js";
 import AdSenseSlot from "./AdSenseSlot.jsx";
+import { gamePages } from "./gameMeta.js";
 
 const HOME_PATH = import.meta.env.BASE_URL;
 const GameScoreContext = createContext(null);
+const gameIcons = {
+  memory: Brain,
+  "tic-tac-toe": Circle,
+  "number-guess": Hash,
+  "context-guess": MessageCircle,
+};
+const gameDetails = {
+  memory: { description: "Find the matching pairs.", meta: "1 player · Quick" },
+  "tic-tac-toe": { description: "Play the AI or challenge a friend.", meta: "AI · 2 players" },
+  "number-guess": { description: "Use the clues to find the number.", meta: "Python · 4 difficulty levels" },
+  "context-guess": { description: "Explore meaning to find the hidden word.", meta: "Word puzzle · Semantic ranks" },
+};
+const gameOptions = gamePages.map((game) => ({
+  ...game,
+  ...gameDetails[game.id],
+  icon: gameIcons[game.id],
+}));
+
+function getGameUrl(game) {
+  return `${HOME_PATH}games/${game.slug}`;
+}
+
+function formatRecordDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Recent";
+  return date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
 
 function getRankedPlayerIds(players) {
   return Object.entries(players)
@@ -94,6 +127,7 @@ function GameDashboard({
 
   const players = gameData.players;
   const rankedIds = getRankedPlayerIds(players);
+  const recentPlayers = gameData.weeklyPlayers.slice(0, 5);
   return (
     <section className="mt-8 rounded-xl border border-ink/10 bg-white/80 p-4 shadow-sm sm:p-6" aria-label="Game leaderboard">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -129,7 +163,7 @@ function GameDashboard({
             type="button"
             disabled={!isFirebaseConfigured}
             onClick={() => onSignIn().catch((error) => setError(getSignInErrorMessage(error)))}
-            className="inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#4a4b41] disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-ink px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#4a4b41] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <LogIn size={14} /> Continue with Google
           </button>
@@ -139,7 +173,7 @@ function GameDashboard({
               Playing as <span className="font-semibold">{profile.name}</span>
               <span className="ml-2 text-[10px] text-muted">({authUser.email})</span>
             </p>
-            <button type="button" onClick={() => onSignOut().catch((error) => setError(error.message))} className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-muted hover:text-ink">
+            <button type="button" onClick={() => onSignOut().catch((error) => setError(error.message))} className="inline-flex min-h-11 items-center gap-1.5 text-[10px] font-semibold text-muted hover:text-ink">
               <LogOut size={13} /> Sign out
             </button>
           </div>
@@ -154,7 +188,7 @@ function GameDashboard({
               placeholder="Choose a lowercase player name"
               className="min-w-0 flex-1 rounded-full border border-ink/15 px-4 py-2.5 text-xs outline-none transition focus:border-[#829f35]"
             />
-            <button type="submit" disabled={profileSaving} className="rounded-full bg-ink px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#4a4b41] disabled:cursor-wait disabled:opacity-60">
+            <button type="submit" disabled={profileSaving} className="min-h-11 rounded-full bg-ink px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#4a4b41] disabled:cursor-wait disabled:opacity-60">
               {profileSaving ? "Creating profile…" : "Create player"}
             </button>
           </form>
@@ -168,14 +202,67 @@ function GameDashboard({
         Player names are unique. Google sign-in reconnects your profile on the same Python score server.
       </p>
 
+      <div className="mt-5 grid gap-5 lg:grid-cols-2">
+        <section className="rounded-lg border border-ink/10 bg-[#f8f8f5] p-4" aria-labelledby="weekly-leaderboard-title">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h3 id="weekly-leaderboard-title" className="text-sm font-semibold">Top players this week</h3>
+              <p className="mt-1 text-[10px] text-muted">Points earned in the last 7 days</p>
+            </div>
+            <Trophy size={17} className="text-[#829f35]" />
+          </div>
+          {recentPlayers.length ? (
+            <ol className="mt-3 divide-y divide-ink/5">
+              {recentPlayers.map((player, index) => (
+                <li key={player.id} className="grid grid-cols-[32px_1fr_auto] items-center gap-2 py-2.5 text-xs">
+                  <span className="font-display font-bold text-[#71862f]">{index === 0 ? <Award size={16} /> : `#${index + 1}`}</span>
+                  <span className="truncate font-medium">{player.name}{player.id === authUser?.uid && <span className="ml-2 text-[9px] text-[#71862f]">YOU</span>}</span>
+                  <span className="font-semibold">{player.points} pts · {player.gamesPlayed} {player.gamesPlayed === 1 ? "game" : "games"}</span>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="mt-4 rounded-md border border-dashed border-ink/15 px-3 py-4 text-center text-[11px] leading-5 text-muted">
+              {gameData.loading ? "Loading this week’s scores…" : "No scored games this week yet. Play a round to get on the board."}
+            </p>
+          )}
+        </section>
+
+        <section className="rounded-lg border border-ink/10 bg-[#f8f8f5] p-4" aria-labelledby="recent-activity-title">
+          <h3 id="recent-activity-title" className="text-sm font-semibold">Recent player activity</h3>
+          <p className="mt-1 text-[10px] text-muted">Latest verified game results</p>
+          {gameData.recentRecords.length ? (
+            <ol className="mt-3 divide-y divide-ink/5">
+              {gameData.recentRecords.slice(0, 5).map((record) => (
+                <li key={record.id} className="flex items-center justify-between gap-3 py-2.5 text-[11px]">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{record.playerName} <span className="font-normal text-muted">· {gameOptions.find((game) => game.id === record.game)?.title || record.game}</span></p>
+                    <p className="mt-0.5 text-[10px] text-muted">{formatRecordDate(record.createdAt)}</p>
+                  </div>
+                  <span className={`shrink-0 font-semibold ${record.pointsDelta > 0 ? "text-[#71862f]" : record.pointsDelta < 0 ? "text-red-700" : "text-muted"}`}>
+                    {record.pointsDelta > 0 ? "+" : ""}{record.pointsDelta} pts
+                  </span>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="mt-4 rounded-md border border-dashed border-ink/15 px-3 py-4 text-center text-[11px] text-muted">
+              {gameData.loading ? "Loading recent games…" : "Completed games will appear here."}
+            </p>
+          )}
+        </section>
+      </div>
+
+      <details className="mt-5 rounded-lg border border-ink/10 bg-[#f8f8f5]">
+        <summary className="cursor-pointer px-3 py-2.5 text-[11px] font-semibold">All-time leaderboard</summary>
       {rankedIds.length === 0 ? (
-        <div className="mt-5 rounded-lg border border-dashed border-ink/15 px-4 py-6 text-center">
+        <div className="m-3 rounded-lg border border-dashed border-ink/15 px-4 py-6 text-center">
           <UserRound size={20} className="mx-auto text-[#829f35]" />
           <p className="mt-2 text-xs font-medium">Sign in and create a player profile to join the leaderboard.</p>
           <p className="mt-1 text-[10px] text-muted">Play games to earn points and climb the ranks.</p>
         </div>
       ) : (
-        <div className="mt-5 overflow-hidden rounded-lg border border-ink/10">
+        <div className="m-3 overflow-hidden rounded-lg border border-ink/10">
           <div className="grid grid-cols-[48px_1fr_75px_65px] gap-2 bg-[#f8f8f5] px-3 py-2.5 text-[9px] font-semibold uppercase tracking-wide text-muted sm:grid-cols-[60px_1fr_100px_90px] sm:px-4">
             <span>Rank</span><span>Player</span><span className="text-right">Points</span><span className="text-right">Games</span>
           </div>
@@ -197,6 +284,7 @@ function GameDashboard({
           </ol>
         </div>
       )}
+      </details>
       <details className="mt-3 rounded-lg border border-ink/10 bg-[#f8f8f5]">
         <summary className="cursor-pointer px-3 py-2.5 text-[10px] font-semibold">How points work</summary>
         <ul className="space-y-1.5 border-t border-ink/10 px-3 py-2.5 text-[10px] leading-5 text-muted">
@@ -205,7 +293,7 @@ function GameDashboard({
           <li>Players are ranked from highest points to lowest. Equal scores use wins, games played, then player name.</li>
         </ul>
       </details>
-      <p className="mt-2 text-[10px] text-muted">Scores, recent game records, and rankings update live. Score totals never reset.</p>
+      <p className="mt-2 text-[10px] text-muted">Scores and player activity refresh every five seconds. Weekly points cover the last seven days; all-time totals never reset.</p>
     </section>
   );
 }
@@ -265,13 +353,6 @@ function useVerifiedGame(game, enabled) {
 
   return { sessionId, starting, failed, start, action };
 }
-
-const gameOptions = [
-  { id: "memory", title: "Memory match", description: "Find the matching pairs.", icon: Brain, meta: "1 player · Quick" },
-  { id: "tic-tac-toe", title: "Tic-tac-toe", description: "Play against the AI or challenge a friend.", icon: Circle, meta: "AI · 2 players" },
-  { id: "number-guess", title: "Number guess", description: "Can you find the secret number?", icon: Hash, meta: "Python · 4 difficulty levels" },
-  { id: "context-guess", title: "Context Guess", description: "Explore meaning to find the hidden word.", icon: MessageCircle, meta: "Word puzzle · Semantic ranks" },
-];
 
 const memoryIcons = [Zap, Star, Leaf, Sun, Sparkles, Gamepad2];
 const PYODIDE_SCRIPT_URL = "https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js";
@@ -447,7 +528,7 @@ function MemoryGame() {
         <div className="flex items-center gap-3">
           <span className="rounded-full bg-[#eaeae2] px-3 py-2 text-xs font-medium">Moves <strong>{moves}</strong></span>
           <span className="rounded-full bg-[#eaeae2] px-3 py-2 text-xs font-medium">Pairs <strong>{matched.length / 2}/6</strong></span>
-          <button type="button" onClick={reset} disabled={flipped.length === 2 || verifiedPending} aria-label="Restart memory game" className="flex h-9 w-9 items-center justify-center rounded-full border border-ink/10 bg-white hover:bg-[#eaeae2] disabled:opacity-50"><RotateCcw size={15} /></button>
+          <button type="button" onClick={reset} disabled={flipped.length === 2 || verifiedPending} aria-label="Restart memory game" className="flex h-11 w-11 items-center justify-center rounded-full border border-ink/10 bg-white hover:bg-[#eaeae2] disabled:opacity-50"><RotateCcw size={15} /></button>
         </div>
       </div>
       {gameError && <p role="alert" className="mb-3 text-center text-xs text-red-700">{gameError}</p>}
@@ -707,8 +788,8 @@ function TicTacToe() {
         <p className="text-xs uppercase tracking-[0.14em] text-muted">Choose how to play</p>
         <h2 className="mt-2 font-display text-3xl font-semibold tracking-[-0.06em]">Tic-tac-toe</h2>
         <div className="mt-4 inline-flex rounded-full bg-[#eaeae2] p-1" aria-label="Game mode">
-          <button type="button" aria-pressed={mode === "ai"} onClick={() => changeMode("ai")} className={`rounded-full px-3 py-2 text-[11px] font-semibold transition ${mode === "ai" ? "bg-ink text-white" : "text-muted hover:text-ink"}`}>Play vs AI</button>
-          <button type="button" aria-pressed={mode === "two-player"} onClick={() => changeMode("two-player")} className={`rounded-full px-3 py-2 text-[11px] font-semibold transition ${mode === "two-player" ? "bg-ink text-white" : "text-muted hover:text-ink"}`}>2 players</button>
+          <button type="button" aria-pressed={mode === "ai"} onClick={() => changeMode("ai")} className={`min-h-11 rounded-full px-3 py-2 text-[11px] font-semibold transition ${mode === "ai" ? "bg-ink text-white" : "text-muted hover:text-ink"}`}>Play vs AI</button>
+          <button type="button" aria-pressed={mode === "two-player"} onClick={() => changeMode("two-player")} className={`min-h-11 rounded-full px-3 py-2 text-[11px] font-semibold transition ${mode === "two-player" ? "bg-ink text-white" : "text-muted hover:text-ink"}`}>2 players</button>
         </div>
         {mode === "ai" && (
           <div className="mt-4">
@@ -720,7 +801,7 @@ function TicTacToe() {
                   type="button"
                   aria-pressed={difficulty === level}
                   onClick={() => changeDifficulty(level)}
-                  className={`rounded-full px-3 py-1.5 text-[10px] font-semibold transition ${
+                  className={`min-h-11 rounded-full px-3 py-1.5 text-[10px] font-semibold transition ${
                     difficulty === level
                       ? "bg-[#eaeae2] text-ink"
                       : "text-muted hover:text-ink"
@@ -770,8 +851,8 @@ function TicTacToe() {
           ))}
         </div>
         <div className="mt-5 flex flex-wrap gap-2">
-          <button type="button" onClick={resetRound} className="rounded-full bg-ink px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#4a4b41]">New round</button>
-          <button type="button" onClick={resetMatch} className="rounded-full border border-ink/15 px-4 py-2.5 text-xs font-semibold hover:bg-[#eaeae2]">Reset scores</button>
+          <button type="button" onClick={resetRound} className="min-h-11 rounded-full bg-ink px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#4a4b41]">New round</button>
+          <button type="button" onClick={resetMatch} className="min-h-11 rounded-full border border-ink/15 px-4 py-2.5 text-xs font-semibold hover:bg-[#eaeae2]">Reset scores</button>
         </div>
       </div>
     </div>
@@ -974,7 +1055,7 @@ function ContextGuessGame() {
             disabled={complete || loading || guessPending || Boolean(modelError)}
             className="min-w-0 flex-1 rounded-full border border-ink/15 px-5 py-3 text-sm outline-none transition focus:border-[#829f35] disabled:bg-[#f8f8f5]"
           />
-          <button type="submit" disabled={complete || loading || guessPending || Boolean(modelError)} className="rounded-full bg-ink px-6 py-3 text-xs font-semibold text-white transition hover:bg-[#4a4b41] disabled:cursor-not-allowed disabled:opacity-50">
+          <button type="submit" disabled={complete || loading || guessPending || Boolean(modelError)} className="min-h-11 rounded-full bg-ink px-6 py-3 text-xs font-semibold text-white transition hover:bg-[#4a4b41] disabled:cursor-not-allowed disabled:opacity-50">
             Guess word
           </button>
         </form>
@@ -986,7 +1067,7 @@ function ContextGuessGame() {
         )}
 
         {complete && (
-          <button type="button" onClick={startNewPuzzle} disabled={loading} className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#829f35] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#71862f] disabled:cursor-wait disabled:opacity-60">
+          <button type="button" onClick={startNewPuzzle} disabled={loading} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full bg-[#829f35] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#71862f] disabled:cursor-wait disabled:opacity-60">
             <RotateCcw size={14} /> Play a new word
           </button>
         )}
@@ -1181,7 +1262,7 @@ function NumberGuessGame() {
         ) : error ? (
           <div className="flex min-h-[130px] flex-col items-center justify-center text-center">
             <p role="alert" className="text-sm text-red-700">{error}</p>
-            <button type="button" onClick={() => setRetry((current) => current + 1)} className="mt-4 rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white hover:bg-[#4a4b41]">Retry</button>
+            <button type="button" onClick={() => setRetry((current) => current + 1)} className="mt-4 min-h-11 rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white hover:bg-[#4a4b41]">Retry</button>
           </div>
         ) : (
           <>
@@ -1195,7 +1276,7 @@ function NumberGuessGame() {
                     aria-pressed={difficulty === item.name}
                     disabled={submitting || verified.starting}
                     onClick={() => changeDifficulty(item.name)}
-                    className={`rounded-lg border px-3 py-2.5 text-left transition disabled:opacity-60 ${
+                    className={`min-h-11 rounded-lg border px-3 py-2.5 text-left transition disabled:opacity-60 ${
                       difficulty === item.name
                         ? "border-ink bg-ink text-white"
                         : "border-ink/10 bg-[#f8f8f5] hover:border-ink/30"
@@ -1229,7 +1310,7 @@ function NumberGuessGame() {
                 disabled={complete || submitting || verified.starting}
                 className="min-w-0 flex-1 rounded-full border border-ink/15 px-5 py-3 text-sm outline-none transition focus:border-[#829f35] disabled:bg-[#f8f8f5]"
               />
-              <button type="submit" disabled={complete || submitting || verified.starting} className="rounded-full bg-ink px-6 py-3 text-xs font-semibold text-white transition hover:bg-[#4a4b41] disabled:cursor-not-allowed disabled:opacity-50">
+              <button type="submit" disabled={complete || submitting || verified.starting} className="min-h-11 rounded-full bg-ink px-6 py-3 text-xs font-semibold text-white transition hover:bg-[#4a4b41] disabled:cursor-not-allowed disabled:opacity-50">
                 {submitting ? "Checking…" : "Make a guess"}
               </button>
             </form>
@@ -1241,7 +1322,7 @@ function NumberGuessGame() {
             )}
 
             {complete && (
-              <button type="button" onClick={startNewGame} disabled={submitting || verified.starting} className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#829f35] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#71862f] disabled:opacity-50">
+              <button type="button" onClick={startNewGame} disabled={submitting || verified.starting} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full bg-[#829f35] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#71862f] disabled:opacity-50">
                 <RotateCcw size={14} /> Play again
               </button>
             )}
@@ -1274,9 +1355,12 @@ function NumberGuessGame() {
 }
 
 export default function GamesPage() {
-  const [activeGame, setActiveGame] = useState("memory");
+  const pathSlug = window.location.pathname.replace(/\/+$/, "").split("/").pop();
+  const currentGame = gamePages.find((game) => game.slug === pathSlug);
+  const [activeGame] = useState(currentGame?.id || "memory");
   const [gameData, setGameData] = useState({
     players: {},
+    weeklyPlayers: [],
     recentRecords: [],
     loading: true,
     recordsLoading: true,
@@ -1285,6 +1369,46 @@ export default function GamesPage() {
   const [authUser, setAuthUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [profileSaving, setProfileSaving] = useState(false);
+
+  useEffect(() => {
+    if (!currentGame) {
+      document.title = "Play Games — Krish Raut";
+      return;
+    }
+
+    const title = `${currentGame.title} — Play by Krish Raut`;
+    const description = currentGame.metaDescription;
+    const pageUrl = new URL(`${HOME_PATH}games/${currentGame.slug}/`, window.location.origin);
+    const imageUrl = new URL(`${HOME_PATH}${currentGame.shareImage}`, window.location.origin);
+
+    document.title = title;
+    for (const [selector, attribute, key, content] of [
+      ['meta[name="description"]', "name", "description", description],
+      ['meta[property="og:title"]', "property", "og:title", title],
+      ['meta[property="og:description"]', "property", "og:description", currentGame.hook],
+      ['meta[property="og:url"]', "property", "og:url", pageUrl.href],
+      ['meta[property="og:image"]', "property", "og:image", imageUrl.href],
+      ['meta[name="twitter:title"]', "name", "twitter:title", title],
+      ['meta[name="twitter:description"]', "name", "twitter:description", currentGame.hook],
+      ['meta[name="twitter:image"]', "name", "twitter:image", imageUrl.href],
+    ]) {
+      let tag = document.head.querySelector(selector);
+      if (!tag) {
+        tag = document.createElement("meta");
+        tag.setAttribute(attribute, key);
+        document.head.append(tag);
+      }
+      tag.content = content;
+    }
+
+    let canonical = document.head.querySelector('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.rel = "canonical";
+      document.head.append(canonical);
+    }
+    canonical.href = pageUrl.href;
+  }, [currentGame]);
 
   useEffect(() => {
     if (!isFirebaseConfigured) {
@@ -1299,11 +1423,13 @@ export default function GamesPage() {
   }, []);
 
   useEffect(() => {
+    if (currentGame) return undefined;
     return listenToGameDashboard(
-      ({ players, recentRecords }) => {
+      ({ players, weeklyPlayers, recentRecords }) => {
         setGameData((current) => ({
           ...current,
           players: Object.fromEntries(players.map(({ id, ...player }) => [id, player])),
+          weeklyPlayers,
           recentRecords,
           loading: false,
           recordsLoading: false,
@@ -1319,7 +1445,7 @@ export default function GamesPage() {
         }));
       },
     );
-  }, []);
+  }, [currentGame]);
 
   const profile = authUser ? gameData.players[authUser.uid] : null;
 
@@ -1360,6 +1486,7 @@ export default function GamesPage() {
     setScoreError,
     clearScoreError,
   }), [clearScoreError, profile, setScoreError, startGame, submitAction]);
+  const activeGameOption = gameOptions.find(({ id }) => id === activeGame);
 
   return (
     <div className="min-h-screen bg-paper text-ink">
@@ -1368,7 +1495,7 @@ export default function GamesPage() {
           <a href={HOME_PATH} className="font-display text-sm font-extrabold tracking-[-0.06em]">
             KR<span className="text-[#829f35]">.</span>
           </a>
-          <a href={HOME_PATH} className="inline-flex items-center gap-2 text-xs font-semibold text-muted transition hover:text-ink">
+          <a href={HOME_PATH} className="inline-flex min-h-11 items-center gap-2 text-xs font-semibold text-muted transition hover:text-ink">
             <ArrowLeft size={14} /> Back to portfolio
           </a>
         </nav>
@@ -1377,61 +1504,93 @@ export default function GamesPage() {
       <main className="mx-auto max-w-[1100px] px-5 pb-16 pt-12 sm:px-8 sm:pt-16">
         <GameScoreContext.Provider value={scoreContext}>
           <section className="games-enter">
-            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted">
-              <Gamepad2 size={15} className="text-[#829f35]" /> A little break
-            </div>
-            <div className="mt-4 flex flex-wrap items-end justify-between gap-5">
-              <div>
-                <h1 className="font-display text-5xl font-medium leading-[0.96] tracking-[-0.08em] sm:text-7xl">
-                  Play a little.
-                  <br />
-                  <span className="text-[#829f35]">Think a lot.</span>
-                </h1>
-                <p className="mt-5 max-w-lg text-sm leading-6 text-muted">
-                  A small collection of browser games you can play without an account. Sign in only if you want a leaderboard profile.
-                </p>
+            {currentGame ? (
+              <div className="grid items-center gap-8 lg:grid-cols-[1fr_0.9fr]">
+                <div>
+                  <a href={`${HOME_PATH}games`} className="mb-7 inline-flex min-h-11 items-center gap-2 text-xs font-semibold text-muted transition hover:text-ink">
+                    <ArrowLeft size={14} /> All games
+                  </a>
+                  <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted">
+                    <Gamepad2 size={15} className="text-[#829f35]" /> Browser game
+                  </div>
+                  <h1 className="mt-4 font-display text-5xl font-medium leading-[0.96] tracking-[-0.08em] sm:text-7xl">
+                    {currentGame.title}
+                  </h1>
+                  <p className="mt-5 max-w-lg text-base leading-7 text-muted">
+                    {currentGame.hook}
+                  </p>
+                  <div className="mt-6 max-w-lg rounded-xl border border-ink/10 bg-white/70 p-4">
+                    <h2 className="text-xs font-semibold">How to play</h2>
+                    <p className="mt-2 text-xs leading-6 text-muted">{currentGame.howToPlay}</p>
+                  </div>
+                </div>
+                <img
+                  src={`${HOME_PATH}${currentGame.previewImage}`}
+                  alt={`${currentGame.title} game preview`}
+                  width="1200"
+                  height="630"
+                  decoding="async"
+                  className="w-full rounded-xl border border-ink/10 bg-white shadow-sm"
+                />
               </div>
-              <span className="rounded-full bg-[#eaeae2] px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted">Built with React</span>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted">
+                  <Gamepad2 size={15} className="text-[#829f35]" /> A little break
+                </div>
+                <div className="mt-4 flex flex-wrap items-end justify-between gap-5">
+                  <div>
+                    <h1 className="font-display text-5xl font-medium leading-[0.96] tracking-[-0.08em] sm:text-7xl">
+                      Play a little.
+                      <br />
+                      <span className="text-[#829f35]">Think a lot.</span>
+                    </h1>
+                    <p className="mt-5 max-w-lg text-sm leading-6 text-muted">
+                      A small collection of browser games you can play without an account. Sign in only if you want a leaderboard profile.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-[#eaeae2] px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted">Built with React</span>
+                </div>
+              </>
+            )}
+          </section>
+
+          {!currentGame && (
+            <GameDashboard
+              gameData={gameData}
+              authUser={authUser}
+              profile={profile}
+              authLoading={authLoading}
+              profileSaving={profileSaving}
+              setError={(error) => setGameData((current) => ({ ...current, error }))}
+              onSignIn={signInWithGoogle}
+              onSignOut={signOutPlayer}
+              onCreateProfile={createProfile}
+            />
+          )}
+
+          <section className="mt-10" aria-label={currentGame ? "More games" : "Choose a game"}>
+            {currentGame && <h2 className="mb-4 font-display text-xl font-semibold tracking-[-0.05em]">More games</h2>}
+            <div className="grid gap-3 sm:grid-cols-2">
+            {gameOptions.filter((game) => !currentGame || game.id !== currentGame.id).map(({ id, slug, title, description, icon: Icon, meta }) => (
+              <a
+                key={id}
+                href={getGameUrl({ slug })}
+                className="flex min-h-[92px] items-center gap-4 rounded-lg border border-ink/10 bg-white/70 p-4 text-left transition hover:border-ink/30 sm:p-5"
+              >
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#eaeae2] text-ink"><Icon size={20} /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="font-display text-base font-semibold tracking-[-0.03em]">{title}</span>
+                  <span className="mt-1 block text-xs text-muted">{description}</span>
+                  <span className="mt-2 block text-[9px] uppercase tracking-[0.12em] text-muted">{meta}</span>
+                </span>
+                <ArrowUpRight size={16} className="text-muted" />
+              </a>
+            ))}
             </div>
           </section>
 
-          <GameDashboard
-            gameData={gameData}
-            authUser={authUser}
-            profile={profile}
-            authLoading={authLoading}
-            profileSaving={profileSaving}
-            setError={(error) => setGameData((current) => ({ ...current, error }))}
-            onSignIn={signInWithGoogle}
-            onSignOut={signOutPlayer}
-            onCreateProfile={createProfile}
-          />
-
-          <section className="mt-10 grid gap-3 sm:grid-cols-2" aria-label="Choose a game">
-            {gameOptions.map(({ id, title, description, icon: Icon, meta }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setActiveGame(id)}
-                aria-pressed={activeGame === id}
-                className={`flex items-center gap-4 rounded-lg border p-4 text-left transition sm:p-5 ${
-                  activeGame === id
-                    ? "border-ink bg-ink text-paper shadow-lg"
-                    : "border-ink/10 bg-white/70 hover:border-ink/30"
-                }`}
-              >
-                <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${activeGame === id ? "bg-[#b5d943] text-ink" : "bg-[#eaeae2] text-ink"}`}><Icon size={20} /></span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2 font-display text-base font-semibold tracking-[-0.03em]">{title}{activeGame === id && <span className="rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-medium">Playing</span>}</span>
-                  <span className={`mt-1 block text-xs ${activeGame === id ? "text-paper/65" : "text-muted"}`}>{description}</span>
-                  <span className={`mt-2 block text-[9px] uppercase tracking-[0.12em] ${activeGame === id ? "text-paper/45" : "text-muted"}`}>{meta}</span>
-                </span>
-                <ArrowUpRight size={16} className={activeGame === id ? "text-[#b5d943]" : "text-muted"} />
-              </button>
-            ))}
-          </section>
-
-          <section className="games-enter mt-6 rounded-xl border border-ink/10 bg-white/80 p-4 shadow-sm sm:p-7" aria-label="Game board">
+          <section className="games-enter mt-6 rounded-xl border border-ink/10 bg-white/80 p-4 shadow-sm sm:p-7" aria-label={`${activeGameOption.title} game board`}>
             {activeGame === "memory"
               ? <MemoryGame key={`memory-${profile ? authUser.uid : "guest"}`} />
               : activeGame === "tic-tac-toe"

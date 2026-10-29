@@ -151,6 +151,33 @@ class GameStore:
                     """
                 )
             ]
+            weekly_players = [
+                {
+                    "id": row["player_id"],
+                    "name": row["player_name"],
+                    "points": row["weekly_points"],
+                    "gamesPlayed": row["games_played"],
+                    "wins": row["wins"],
+                    "lastActive": row["last_active"],
+                }
+                for row in self._execute(
+                    connection,
+                    """
+                    SELECT player_id, player_name,
+                           SUM(points_delta) AS weekly_points,
+                           COUNT(*) AS games_played,
+                           SUM(CASE WHEN outcome = 'win' THEN 1 ELSE 0 END) AS wins,
+                           MAX(created_at) AS last_active
+                    FROM game_records
+                    WHERE created_at >= ?
+                    GROUP BY player_id, player_name
+                    ORDER BY weekly_points DESC, wins DESC,
+                             games_played DESC, player_name ASC
+                    LIMIT 10
+                    """,
+                    ((datetime.now(timezone.utc) - timedelta(days=7)).isoformat(),),
+                )
+            ]
             records = [
                 {
                     "id": row["id"],
@@ -173,7 +200,11 @@ class GameStore:
                     """
                 )
             ]
-        return {"players": players, "recentRecords": records}
+        return {
+            "players": players,
+            "weeklyPlayers": weekly_players,
+            "recentRecords": records,
+        }
 
     def start_game(self, uid: str, game: object, options: object = None) -> str:
         state = create_game_state(game, options)

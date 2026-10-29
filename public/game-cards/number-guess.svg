@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
+  <title id="title">Number Guess — Play by Krish Raut</title>
+  <desc id="description">A browser game preview showing number guesses and higher-or-lower clues.</desc>
+  <rect width="1200" height="630" fill="#f6f5f0"/>
+  <circle cx="1020" cy="75" r="220" fill="#eaeae2"/>
+  <g font-family="Arial, sans-serif" fill="#20211f">
+    <text x="82" y="88" font-size="24" font-weight="700" letter-spacing="5">KR.  /  BROWSER GAMES</text>
+    <text x="82" y="245" font-size="83" font-weight="700" letter-spacing="-5">Number Guess</text>
+    <text x="86" y="307" font-size="27" fill="#777871">Follow the clues. Find the number.</text>
+    <text x="86" y="360" font-size="19" fill="#777871">Four difficulty levels · Python powered</text>
+  </g>
+  <g transform="translate(750 154)">
+    <rect width="350" height="350" rx="26" fill="#fff" stroke="#20211f" stroke-opacity=".1" stroke-width="2"/>
+    <text x="175" y="92" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="700" letter-spacing="3" fill="#777871">EXAMPLE ROUND</text>
+    <text x="175" y="199" text-anchor="middle" font-family="Arial, sans-serif" font-size="88" font-weight="700" fill="#829f35">42</text>
+    <rect x="45" y="230" width="260" height="62" rx="31" fill="#20211f"/>
+    <text x="175" y="269" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="600" fill="#f6f5f0">Too low — try higher</text>
+  </g>
+</svg>

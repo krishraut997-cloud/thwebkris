@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://portfolio-seven-green-mocmyyk3ff.vercel.app/sitemap.xml
+Sitemap: https://krishraut997-cloud.github.io/thwebkris/sitemap.xml

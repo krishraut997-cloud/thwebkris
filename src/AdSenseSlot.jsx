@@ -22,12 +22,30 @@ export default function AdSenseSlot({ slotId, className = "" }) {
   useEffect(() => {
     if (!publisherIdIsValid || !slotIsValid || !adRef.current) return;
 
-    loadAdSenseScript();
-    if (adRef.current.dataset.adsenseRequested) return;
+    const requestAd = () => {
+      if (adRef.current.dataset.adsenseRequested) return;
+      loadAdSenseScript();
+      adRef.current.dataset.adsenseRequested = "true";
+      window.adsbygoogle = window.adsbygoogle || [];
+      window.adsbygoogle.push({});
+    };
 
-    adRef.current.dataset.adsenseRequested = "true";
-    window.adsbygoogle = window.adsbygoogle || [];
-    window.adsbygoogle.push({});
+    if (!("IntersectionObserver" in window)) {
+      requestAd();
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          requestAd();
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "200px 0px" },
+    );
+    observer.observe(adRef.current);
+    return () => observer.disconnect();
   }, [slotIsValid]);
 
   if (!publisherIdIsValid || !slotIsValid) return null;

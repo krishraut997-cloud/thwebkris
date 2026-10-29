@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title description">
+  <title id="title">Krish Raut — Playful web experiences</title>
+  <desc id="description">A preview of Krish Raut's browser-game portfolio and Python-powered score platform.</desc>
+  <rect width="1200" height="630" fill="#f6f5f0"/>
+  <circle cx="1020" cy="90" r="220" fill="#eaeae2"/>
+  <circle cx="1090" cy="540" r="190" fill="#dce7bd"/>
+  <g font-family="Arial, sans-serif" fill="#20211f">
+    <text x="82" y="88" font-size="24" font-weight="700" letter-spacing="5">KR.  /  PORTFOLIO</text>
+    <text x="82" y="224" font-size="76" font-weight="700" letter-spacing="-4">Small games.</text>
+    <text x="82" y="311" font-size="76" font-weight="700" letter-spacing="-4">Thoughtful code.</text>
+    <text x="86" y="369" font-size="25" fill="#777871">React games · Python score API · Live leaderboard</text>
+  </g>
+  <rect x="82" y="426" width="490" height="125" rx="18" fill="#20211f"/>
+  <g font-family="Arial, sans-serif">
+    <text x="112" y="469" fill="#b5d943" font-size="15" font-weight="700" letter-spacing="3">BUILT TO PLAY</text>
+    <text x="112" y="516" fill="#f6f5f0" font-size="26" font-weight="600">A portfolio with a playful side.</text>
+  </g>
+  <g transform="translate(738 240)">
+    <rect width="350" height="270" rx="24" fill="#fff" stroke="#20211f" stroke-opacity=".12" stroke-width="2"/>
+    <text x="34" y="87" font-family="Arial, sans-serif" fill="#777871" font-size="14" font-weight="700" letter-spacing="2">THE GAME COLLECTION</text>
+    <g font-family="Arial, sans-serif" font-size="19" font-weight="600" fill="#20211f">
+      <rect x="28" y="110" width="294" height="42" rx="10" fill="#f6f5f0"/>
+      <text x="48" y="137">Memory Match</text><text x="298" y="137" text-anchor="end" fill="#829f35">↗</text>
+      <rect x="28" y="162" width="294" height="42" rx="10" fill="#edf3de"/>
+      <text x="48" y="189">Tic-tac-toe</text><text x="298" y="189" text-anchor="end" fill="#829f35">↗</text>
+      <rect x="28" y="214" width="294" height="42" rx="10" fill="#f6f5f0"/>
+      <text x="48" y="241">Context Guess</text><text x="298" y="241" text-anchor="end" fill="#829f35">↗</text>
+    </g>
+    <text x="34" y="285" font-family="Arial, sans-serif" fill="#777871" font-size="12">Python-verified scores · Weekly rankings</text>
+  </g>
+</svg>

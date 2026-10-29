@@ -7,8 +7,10 @@ import {
   Asterisk,
   Braces,
   Code2,
+  Database,
   ExternalLink,
   Github,
+  Gamepad2,
   Layers3,
   Mail,
   MessageCircle,
@@ -16,7 +18,6 @@ import {
   Palette,
   X,
 } from "lucide-react";
-import { ProjectDemo } from "./ProjectDemos.jsx";
 import AdSenseSlot from "./AdSenseSlot.jsx";
 
 const GamesPage = lazy(() => import("./GamesPage.jsx"));
@@ -28,50 +29,11 @@ const CONTACT_LINKS = {
   whatsapp: "https://wa.me/919768717870",
 };
 
-const projects = [
-  {
-    number: "01",
-    name: "Analytics Dashboard",
-    description: "A clear, responsive dashboard for exploring data.",
-    category: "React · Tailwind CSS · Data visualization",
-    image:
-      "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1000&q=75",
-    imageAlt: "Colorful charts on a modern analytics dashboard",
-    className: "project-image-dashboard",
-    label: "Dashboard",
-    descriptionDetail:
-      "A concept project focused on presenting key metrics, trends, and reports in a clean interface.",
-    stack: ["React", "Tailwind CSS", "Recharts"],
-  },
-  {
-    number: "02",
-    name: "Everyday Goods",
-    description: "A simple shopping experience for a modern store.",
-    category: "React · JavaScript · Responsive design",
-    image:
-      "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1000&q=75",
-    imageAlt: "A bright red sneaker presented as an online store product",
-    className: "project-image-store",
-    label: "E-commerce",
-    descriptionDetail:
-      "A storefront concept with product discovery, thoughtful product cards, and a mobile-first layout.",
-    stack: ["React", "JavaScript", "CSS"],
-  },
-  {
-    number: "03",
-    name: "Focus Flow",
-    description: "A lightweight task planner built for focus.",
-    category: "React · UI design · Frontend",
-    image:
-      "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1000&q=75",
-    imageAlt: "A laptop and notes on a developer's workspace",
-    className: "project-image-focus",
-    label: "Productivity",
-    descriptionDetail:
-      "A productivity app concept that brings daily tasks, priorities, and progress into one focused view.",
-    stack: ["React", "Tailwind CSS", "Lucide"],
-  },
-];
+const featuredProject = {
+  name: "Browser Games & Score Platform",
+  image: `${BASE_PATH}/game-cards/game-platform.svg`,
+  stack: ["React", "Python · FastAPI", "Firebase Auth", "SQLite · PostgreSQL"],
+};
 
 const skillGroups = [
   {
@@ -93,6 +55,11 @@ const skillGroups = [
     icon: Layers3,
     title: "What I enjoy",
     skills: ["Component design", "Accessibility", "UI details"],
+  },
+  {
+    icon: Database,
+    title: "Python & backend",
+    skills: ["Python", "FastAPI", "SQLite", "PostgreSQL"],
   },
 ];
 
@@ -185,7 +152,7 @@ function Hero() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#a7c843] opacity-40" />
               <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#8eaa35]" />
             </span>
-            Frontend developer · React & UI
+            Frontend developer · Python learner
           </div>
           <h1 className="max-w-[740px] font-display text-[clamp(3.75rem,8vw,7.4rem)] font-medium leading-[0.91] tracking-[-0.085em]">
             Hi, I&apos;m
@@ -209,9 +176,9 @@ function Hero() {
             </span>
           </h1>
           <p className="mt-8 max-w-[420px] text-[15px] leading-7 text-muted sm:text-base">
-            I build clean, responsive web experiences with React and modern
-            frontend tools. I enjoy turning ideas into interfaces that feel
-            simple, useful, and polished.
+            I build clean, responsive web experiences with React while learning
+            Python through practical projects. I enjoy making games and interfaces
+            that feel simple, useful, and polished.
           </p>
           <div className="mt-9 flex flex-wrap items-center gap-5">
             <a href="#work" className="button-primary">
@@ -226,11 +193,11 @@ function Hero() {
         <div className="hero-art relative mx-auto h-[280px] w-full max-w-[490px] sm:h-[330px] lg:h-[500px]" data-reveal>
           <div className="absolute right-[5%] top-[1%] h-[82%] w-[78%] overflow-hidden rounded-[48%_48%_8px_8px] bg-[#d7d4c8]">
             <img
-              loading="lazy"
+              loading="eager"
               decoding="async"
               className="h-full w-full object-cover object-[50%_48%]"
-              src="https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1000&q=75"
-              alt="A team working together at a laptop"
+              src={`${BASE_PATH}/game-cards/game-board.svg`}
+              alt="Illustrated Context Guess sample game board"
             />
           </div>
           <div className="absolute bottom-[4%] left-[0%] w-[43%] overflow-hidden rounded-[48%_48%_8px_8px] border-[7px] border-paper bg-[#d9cdb8] sm:w-[42%]">
@@ -238,8 +205,8 @@ function Hero() {
               loading="lazy"
               decoding="async"
               className="h-[205px] w-full object-cover sm:h-[248px] lg:h-[270px]"
-              src="https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=700&q=75"
-              alt="A laptop displaying a web development workspace"
+              src={featuredProject.image}
+              alt="Illustrated preview of the browser games and live player dashboard"
             />
           </div>
           <div className="absolute bottom-[11%] right-[4%] flex h-[82px] w-[82px] rotate-[-12deg] items-center justify-center rounded-full bg-[#b5d943] text-center text-[10px] font-bold uppercase leading-[1.35] tracking-[0.1em] text-ink shadow-lg sm:h-[100px] sm:w-[100px] sm:text-[11px]">
@@ -285,116 +252,70 @@ function SectionHeading({ eyebrow, title, description }) {
 }
 
 function Work() {
-  const [activeProject, setActiveProject] = useState(null);
-
-  useEffect(() => {
-    if (!activeProject) return undefined;
-    function handleKeyDown(event) {
-      if (event.key === "Escape") setActiveProject(null);
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeProject]);
-
   return (
     <section id="work" className="bg-white/55 px-6 py-24 sm:px-10 lg:px-16 lg:py-32">
       <div className="mx-auto max-w-[1312px]">
         <SectionHeading
-          eyebrow="Concepts & experiments"
-          title="Selected projects"
-          description="A few frontend concepts exploring useful interfaces, responsive layouts, and thoughtful details."
+          eyebrow="Built & playable"
+          title="Work from this portfolio"
+          description="A real, playable game collection backed by a Python API that verifies game results and keeps the leaderboard."
         />
-        <div className="grid gap-x-7 gap-y-12 sm:grid-cols-2 sm:gap-y-16">
-          {projects.map((project) => (
-            <article
-              key={project.number}
-              className="project-card group"
-              data-reveal
-            >
-              <div className="relative mb-5 aspect-[1.27/1] overflow-hidden rounded-sm bg-[#e8e6de]">
-                <img
-                  src={project.image}
-                  alt={project.imageAlt}
-                  loading="lazy"
-                  decoding="async"
-                  className={`h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.045] ${project.className}`}
-                />
-                <span className="absolute right-4 top-4 flex h-10 w-10 translate-y-1 items-center justify-center rounded-full bg-paper opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
-                  <ArrowUpRight size={17} />
+        <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+          <a
+            href={`${GAMES_PATH}/context-guess`}
+            className="group relative block overflow-hidden rounded-sm bg-[#e8e6de]"
+            aria-label={`Play ${featuredProject.name}`}
+          >
+            <img
+              src={featuredProject.image}
+              alt="Preview of the browser game collection and live player dashboard"
+              loading="lazy"
+              decoding="async"
+              className="aspect-[1.9/1] w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.025]"
+            />
+          </a>
+          <article data-reveal>
+            <div className="mb-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-muted">
+              <Gamepad2 size={15} className="text-[#829f35]" /> Live project
+            </div>
+            <h3 className="font-display text-3xl font-semibold tracking-[-0.06em]">
+              {featuredProject.name}
+            </h3>
+            <p className="mt-4 text-sm leading-6 text-muted">
+              I wanted a portfolio where visitors can actually play the games
+              and where saved scores are trustworthy. The Python API verifies
+              each game session and result before updating the live dashboard.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              {featuredProject.stack.map((item) => (
+                <span key={item} className="rounded-full border border-ink/10 px-2.5 py-1 text-[10px] font-medium text-muted">
+                  {item}
                 </span>
-                <span className="absolute bottom-4 left-4 rounded-full bg-paper/90 px-3 py-1.5 text-[10px] font-semibold tracking-wide text-ink backdrop-blur-sm">
-                  {project.label}
-                </span>
-              </div>
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3 className="font-display text-xl font-bold tracking-[-0.055em] sm:text-2xl">
-                    {project.name}
-                  </h3>
-                  <p className="mt-1 text-[13px] text-muted">{project.description}</p>
-                </div>
-                <span className="pt-1 text-[10px] font-medium uppercase tracking-[0.12em] text-muted">
-                  {project.number}
-                </span>
-              </div>
-              <p className="mt-3 text-[12px] leading-6 text-muted">
-                {project.descriptionDetail}
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {project.stack.map((item) => (
-                  <span
-                    key={item}
-                    className="rounded-full border border-ink/10 px-2.5 py-1 text-[10px] font-medium text-muted"
-                  >
-                    {item}
-                  </span>
-                ))}
-              </div>
-              <p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.13em] text-[#85867e]">
-                {project.category}
-              </p>
-              <button
-                type="button"
-                onClick={() => setActiveProject(project.number)}
-                className="mt-5 inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2.5 text-xs font-semibold text-paper transition hover:bg-[#4a4b41]"
-              >
-                Open live demo <ArrowUpRight size={14} />
-              </button>
-            </article>
-          ))}
+              ))}
+            </div>
+            <div className="mt-7 flex flex-wrap gap-4">
+              <a href={`${GAMES_PATH}/context-guess`} className="inline-flex min-h-11 items-center gap-2 rounded-full bg-ink px-5 text-xs font-semibold text-paper transition hover:bg-[#4a4b41]">
+                Play Context Guess <ArrowUpRight size={14} />
+              </a>
+              <a href="https://github.com/krishraut997-cloud/thwebkris" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-2 text-xs font-semibold transition-colors hover:text-[#71862f]">
+                <Github size={15} /> View the code <ExternalLink size={13} />
+              </a>
+            </div>
+          </article>
         </div>
       </div>
-      {activeProject && (
-        <ProjectDemo project={activeProject} onClose={() => setActiveProject(null)} />
-      )}
     </section>
   );
 }
 
 const pythonProjects = [
   {
-    id: "automation",
-    category: "Automation",
-    name: "Your Python project",
-    description: "Add your project name and a short description of what it does.",
-    technologies: ["Python"],
-    repositoryUrl: "",
-  },
-  {
-    id: "data",
-    category: "Data",
-    name: "Your Python project",
-    description: "Showcase a Python project for data analysis or visualization.",
-    technologies: ["Python"],
-    repositoryUrl: "",
-  },
-  {
-    id: "application",
-    category: "Application",
-    name: "Your Python project",
-    description: "Add a Python app, API, or other project you want to share.",
-    technologies: ["Python"],
-    repositoryUrl: "",
+    id: "game-api",
+    category: "FastAPI · Game backend",
+    name: "Verified Game Score API",
+    description: "A Python API for player profiles, server-verified game sessions, score records, and the live leaderboard. Supports SQLite locally and PostgreSQL in production.",
+    technologies: ["Python", "FastAPI", "SQLite · PostgreSQL", "unittest"],
+    repositoryUrl: "https://github.com/krishraut997-cloud/thwebkris/tree/main/score_backend",
   },
 ];
 
@@ -404,11 +325,11 @@ function PythonProjects() {
       <div className="mx-auto max-w-[1312px]">
         <SectionHeading
           eyebrow="Python · GitHub"
-          title="Python projects"
-          description="A showcase of Python work, with each card linking directly to its GitHub repository."
+          title="Learning by building"
+          description="I’m learning Python from the fundamentals and working toward job-ready skills by building and testing a real backend."
         />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {pythonProjects.map((project, index) => (
+        <div className="grid max-w-[780px] gap-4">
+          {pythonProjects.map((project) => (
             <article
               key={project.id}
               className="group flex min-h-[250px] flex-col rounded-sm border border-ink/10 bg-paper p-5 transition-transform duration-300 hover:-translate-y-1 sm:p-6"
@@ -416,7 +337,7 @@ function PythonProjects() {
             >
               <div className="flex items-start justify-between">
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#eaeae2] text-[#71862f]">
-                  {index === 0 ? <Braces size={19} /> : index === 1 ? <Layers3 size={19} /> : <Code2 size={19} />}
+                  <Braces size={19} />
                 </span>
                 <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
                   {project.category}
@@ -435,26 +356,17 @@ function PythonProjects() {
                   </span>
                 ))}
               </div>
-              {project.repositoryUrl ? (
-                <a
-                  href={project.repositoryUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-5 inline-flex w-fit items-center gap-2 text-xs font-semibold transition-colors hover:text-[#71862f]"
-                >
-                  <Github size={15} /> View on GitHub <ExternalLink size={13} />
-                </a>
-              ) : (
-                <p className="mt-5 text-[11px] font-medium text-muted">
-                  Add your GitHub repository URL in <code>pythonProjects</code>.
-                </p>
-              )}
+              <a
+                href={project.repositoryUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-5 inline-flex min-h-11 w-fit items-center gap-2 text-xs font-semibold transition-colors hover:text-[#71862f]"
+              >
+                <Github size={15} /> View on GitHub <ExternalLink size={13} />
+              </a>
             </article>
           ))}
         </div>
-        <p className="mt-5 text-[11px] text-muted" data-reveal>
-          These are starter cards. Replace the sample names and descriptions with your projects, then add each repository URL to <code>pythonProjects</code> in <code>src/App.jsx</code>.
-        </p>
       </div>
     </section>
   );
@@ -501,8 +413,8 @@ function About() {
         <div className="relative min-h-[300px] overflow-hidden rounded-sm bg-[#d8d5c9] sm:min-h-[420px]" data-reveal>
           <img
             className="absolute inset-0 h-full w-full object-cover"
-            src="https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1000&q=75"
-            alt="A laptop and notes on a developer's workspace"
+            src={`${BASE_PATH}/game-cards/game-platform.svg`}
+            alt="Illustrated preview of the browser games and live player dashboard"
             loading="lazy"
             decoding="async"
           />
@@ -521,13 +433,13 @@ function About() {
           </h2>
           <div className="mt-7 max-w-[520px] space-y-4 text-sm leading-7 text-muted sm:text-[15px]">
             <p>
-              Hey, I&apos;m Krish Raut. I&apos;m a frontend developer who enjoys
-              building useful, polished experiences for the web.
+              Hey, I&apos;m Krish Raut. I&apos;m learning Python from the basics
+              and building toward job-ready skills through practical projects.
             </p>
             <p>
-              I work with React, JavaScript, and Tailwind CSS, and I care about
-              the details that make a site feel intuitive: clear layouts,
-              responsive behavior, accessibility, and a little personality.
+              This site is both my portfolio and a place to play browser games.
+              I built it with a live game dashboard, a Python score API, and a
+              focus on clean UI, useful motion, and a welcoming player experience.
             </p>
           </div>
           <a
@@ -557,8 +469,9 @@ function Contact() {
               something <span className="text-[#b5d943]">great.</span>
             </h2>
             <p className="mt-6 max-w-lg text-sm leading-6 text-paper/65">
-              Have a project, opportunity, or idea to discuss? Choose how you&apos;d like
-              to get in touch.
+              I&apos;m looking for entry-level Python opportunities and
+              collaborations on playful web and game projects. Have an idea to
+              discuss? Choose how you&apos;d like to get in touch.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
@@ -623,7 +536,9 @@ export default function App() {
     }
   }
 
-  const isGamesPage = window.location.pathname.replace(/\/+$/, "") === GAMES_PATH;
+  const currentPath = window.location.pathname.replace(/\/+$/, "") || "/";
+  const isGamesPage =
+    currentPath === GAMES_PATH || currentPath.startsWith(`${GAMES_PATH}/`);
 
   useEffect(() => {
     if (isGamesPage) {
