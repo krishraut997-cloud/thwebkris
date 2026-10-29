@@ -78,14 +78,21 @@ async function requestPythonApi(path, payload, user) {
   return result;
 }
 
-export function listenToGameDashboard(onDashboard, onError) {
+export function listenToGameDashboard(user, onDashboard, onError) {
   let active = true;
   let pending = false;
+  if (!user) {
+    onDashboard({ players: [], recentRecords: [] });
+    return () => {
+      active = false;
+    };
+  }
+
   const refresh = async () => {
     if (!active || pending) return;
     pending = true;
     try {
-      const dashboard = await requestPythonApi("/dashboard");
+      const dashboard = await requestPythonApi("/dashboard", null, user);
       if (active) onDashboard(dashboard);
     } catch (error) {
       if (active) onError(error);

@@ -22,8 +22,9 @@ Firebase Admin service account and Firestore score writes are not used.
 
 SQLite data is saved at `data/game-tracker.sqlite3` by default and is excluded
 from Git. To store it elsewhere, set `GAME_DATABASE_PATH` to an absolute path
-before starting the Python server. The dashboard reads players and the latest
-eight records from the API every five seconds.
+before starting the Python server. A signed-in player can read only their own
+profile and latest eight game records; the dashboard refreshes every five
+seconds.
 
 ## Production hosting
 
@@ -50,8 +51,9 @@ credentials in `VITE_` variables.
   accepted. Wins add 10 points, losses subtract 10, and draws add 0.
 - Player totals and each completed game record are committed together in one
   database transaction. Sessions expire after 24 hours and cannot be replayed.
-- The dashboard sorts by points, then wins, games played, and player name.
+- The dashboard requires Firebase sign-in and only returns the signed-in
+  player's profile and game records. Other players' game data is not exposed.
 - Local two-player Tic-tac-toe remains playable but is not ranked.
 - New profiles are stored in the Python game database. Existing Firestore
   profiles and scores are not automatically copied; this tracker starts with a
-  new leaderboard.
+  new personal score history.

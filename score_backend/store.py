@@ -132,7 +132,7 @@ class GameStore:
 
         return {"id": uid, "name": name, "points": 0, "gamesPlayed": 0, "wins": 0}
 
-    def get_dashboard(self) -> dict[str, list[dict[str, Any]]]:
+    def get_dashboard(self, uid: str) -> dict[str, list[dict[str, Any]]]:
         with self._connection() as connection:
             players = [
                 {
@@ -147,8 +147,9 @@ class GameStore:
                     """
                     SELECT uid, name, points, games_played, wins
                     FROM players
-                    ORDER BY points DESC, wins DESC, games_played DESC, name ASC
-                    """
+                    WHERE uid = ?
+                    """,
+                    (uid,),
                 )
             ]
             records = [
@@ -168,9 +169,11 @@ class GameStore:
                     SELECT id, player_id, player_name, game, outcome,
                            points_delta, points_after, created_at
                     FROM game_records
+                    WHERE player_id = ?
                     ORDER BY created_at DESC
                     LIMIT 8
-                    """
+                    """,
+                    (uid,),
                 )
             ]
         return {"players": players, "recentRecords": records}
