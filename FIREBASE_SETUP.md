@@ -1,51 +1,57 @@
-# Firebase setup for the game leaderboard
+# Python game tracker setup
 
-The games page is connected to the `krish-portfolio-games` Firebase project.
-It uses Google Authentication for player identity and Cloud Firestore for player
-names and scores. The same Google account restores its profile across devices. A
-player name can only be claimed once.
+The games page uses Firebase Google Authentication only to identify players.
+The Python FastAPI service verifies each Firebase sign-in with Google's public
+Identity Toolkit API, then stores profiles, verified game sessions, scores, and
+the recent-game feed in SQLite locally and persistent Postgres in production. A
+Firebase Admin service account and Firestore score writes are not used.
 
-## Firebase project status
+## Local development
 
-- Firebase project: `krish-portfolio-games`
-- Web app: `Krish Portfolio Web`
-- Google sign-in: enabled
-- Cloud Firestore: created in `asia-south1` (Mumbai)
-- Firestore security rules: the hardened local rules in [`firestore.rules`](./firestore.rules)
-  still need deployment to replace the currently published rules
-- Local web configuration: stored in ignored `.env.local`
+1. Keep the Firebase web app settings in the ignored `.env.local` file:
+   `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`,
+   `VITE_FIREBASE_PROJECT_ID`, and `VITE_FIREBASE_APP_ID`.
+2. Enable Google sign-in in Firebase Authentication and allow `localhost` and
+   the website's domain under **Authentication → Settings → Authorized
+   domains**.
+3. Install Python dependencies in the virtual environment:
+   `.\.venv\Scripts\Activate.ps1` followed by
+   `python -m pip install -r requirements-dev.txt`.
+4. Run `npm run dev:score-api` and `npm run dev` in separate terminals.
+   Vite forwards `/api` requests to FastAPI on port 8000.
 
-Use `http://localhost` for local development. Firebase Authentication checks
-authorized domains; the production domain
-`portfolio-seven-green-mocmyyk3ff.vercel.app` is authorized under
-**Authentication → Settings → Authorized domains**. Add any new production
-domain there before using Google sign-in on it.
+SQLite data is saved at `data/game-tracker.sqlite3` by default and is excluded
+from Git. To store it elsewhere, set `GAME_DATABASE_PATH` to an absolute path
+before starting the Python server. The dashboard reads players and the latest
+eight records from the API every five seconds.
 
-Vercel builds also need `VITE_FIREBASE_API_KEY`,
-`VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, and
-`VITE_FIREBASE_APP_ID` set for the Production environment. After changing
-these settings, redeploy so Vite includes them in the client build. Firebase
-web app configuration is public client configuration; never put a Firebase
-Admin SDK private key in a `VITE_` variable or frontend bundle.
+## Production hosting
 
-## Notes
+Vercel's Python functions do not provide a persistent local disk. Connect a
+Prisma Postgres database to the Vercel project using the free plan, and make
+sure `DATABASE_URL` is available to the Production function. The API detects
+that variable and creates its tables in Postgres. Do not deploy production
+without a persistent `DATABASE_URL`; health checks report not-ready and score
+writes are rejected instead of losing records.
 
-- Score and profile data is stored in Firestore, not only in the current browser.
-- New player names are lowercase letters/numbers separated by single spaces;
-  the Firestore rules require the unique-name document key to match that name.
-  The profile creation transaction also checks the previous encoded key format
-  so names claimed before this rule change remain reserved.
-- Client score writes are disabled in both the app and Firestore rules. The
-  browser previously chose each score, so per-write limits could not prevent
-  repeated fabricated results. The leaderboard remains readable, but new
-  scores will not be recorded until a trusted server validates completed games.
-- To apply the security changes to the live project, publish the updated
-  `firestore.rules` with `npx firebase-tools login` followed by
-  `npx firebase-tools deploy --only firestore:rules --project krish-portfolio-games`.
-  Until deployment succeeds, the currently published rules still permit the
-  old score-update flow.
-- Google sign-in is used only for authentication; the app does not request
-  Google API scopes or save Google access tokens. The signed-in user's email is
-  shown only in their own signed-in session and is not included in leaderboard
-  documents.
-- Existing browser-only scores are not automatically imported into Firebase.
+The GitHub Pages workflow points its API requests to the production Vercel
+origin. The API allows requests from `https://krishraut997-cloud.github.io`.
+For another static-site domain, add the exact origin to
+`SCORE_API_ALLOWED_ORIGINS` in Vercel.
+
+The API uses the Firebase web API key (`VITE_FIREBASE_API_KEY`) only to ask
+Google to verify Firebase ID tokens. This is the same public key used by the
+browser; it is not a service-account credential. Do not expose private
+credentials in `VITE_` variables.
+
+## Score and data behavior
+
+- The Python server decides game outcomes; browser-reported scores are never
+  accepted. Wins add 10 points, losses subtract 10, and draws add 0.
+- Player totals and each completed game record are committed together in one
+  database transaction. Sessions expire after 24 hours and cannot be replayed.
+- The dashboard sorts by points, then wins, games played, and player name.
+- Local two-player Tic-tac-toe remains playable but is not ranked.
+- New profiles are stored in the Python game database. Existing Firestore
+  profiles and scores are not automatically copied; this tracker starts with a
+  new leaderboard.

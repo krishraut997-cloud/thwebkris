@@ -2,5 +2,12 @@ node_modules/
 dist/
 .firebase/
 .vercel/
+.vercel_python_packages/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
 .env.local
 .env.*.local
+data/game-tracker.sqlite3
+data/game-tracker.sqlite3-*

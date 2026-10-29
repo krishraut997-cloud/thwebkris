@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import {
   Award,
   ArrowLeft,
@@ -26,9 +26,11 @@ import {
   createPlayerProfile,
   isFirebaseConfigured,
   listenToAuth,
-  listenToPlayers,
+  listenToGameDashboard,
   signInWithGoogle,
   signOutPlayer,
+  startVerifiedGame,
+  submitVerifiedGameAction,
 } from "./firebase";
 import {
   CONTEXT_UNLISTED_RANK,
@@ -37,7 +39,6 @@ import {
 } from "./contextModel.js";
 import AdSenseSlot from "./AdSenseSlot.jsx";
 
-const RANK_REFRESH_INTERVAL = 2 * 60 * 60 * 1000;
 const HOME_PATH = import.meta.env.BASE_URL;
 const GameScoreContext = createContext(null);
 
@@ -52,6 +53,14 @@ function getRankedPlayerIds(players) {
     .map(([id]) => id);
 }
 
+function getSignInErrorMessage(error) {
+  if (error?.code === "auth/unauthorized-domain") {
+    const hostname = window.location.hostname;
+    return `Firebase sign-in is not enabled for ${hostname}. Open this page at http://localhost:5173 for local development, or add ${hostname} under Firebase Console → Authentication → Settings → Authorized domains.`;
+  }
+  return error?.message || "Google sign-in failed. Please try again.";
+}
+
 function GameDashboard({
   gameData,
   authUser,
@@ -59,35 +68,12 @@ function GameDashboard({
   authLoading,
   profileSaving,
   setError,
-  setRankRefresh,
   onSignIn,
   onSignOut,
   onCreateProfile,
 }) {
   const [name, setName] = useState("");
   const [nameError, setNameError] = useState("");
-  const [clock, setClock] = useState(Date.now());
-
-  useEffect(() => {
-    const updateClockAndRanks = () => {
-      const now = Date.now();
-      setClock(now);
-      setRankRefresh((current) => {
-        if (now - current.rankedAt < RANK_REFRESH_INTERVAL) return current;
-        return {
-          rankedIds: getRankedPlayerIds(gameData.players),
-          rankedAt: now,
-        };
-      });
-    };
-
-    const timerId = window.setInterval(updateClockAndRanks, 60_000);
-    window.addEventListener("focus", updateClockAndRanks);
-    return () => {
-      window.clearInterval(timerId);
-      window.removeEventListener("focus", updateClockAndRanks);
-    };
-  }, [gameData.players, setRankRefresh]);
 
   async function choosePlayer(event) {
     event.preventDefault();
@@ -107,14 +93,7 @@ function GameDashboard({
   }
 
   const players = gameData.players;
-  const rankedIds = [
-    ...gameData.rankRefresh.rankedIds.filter((id) => players[id]),
-    ...Object.keys(players).filter((id) => !gameData.rankRefresh.rankedIds.includes(id)),
-  ];
-  const remaining = Math.max(0, gameData.rankRefresh.rankedAt + RANK_REFRESH_INTERVAL - clock);
-  const remainingHours = Math.floor(remaining / 3_600_000);
-  const remainingMinutes = Math.floor((remaining % 3_600_000) / 60_000);
-
+  const rankedIds = getRankedPlayerIds(players);
   return (
     <section className="mt-8 rounded-xl border border-ink/10 bg-white/80 p-4 shadow-sm sm:p-6" aria-label="Game leaderboard">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -123,22 +102,22 @@ function GameDashboard({
             <Trophy size={15} className="text-[#829f35]" /> Game dashboard
           </div>
           <h2 className="mt-2 font-display text-2xl font-semibold tracking-[-0.06em]">Players & rankings</h2>
-          <p className="mt-1 text-[11px] text-muted">Sign in with the same Google account on each device to keep your profile and score.</p>
+          <p className="mt-1 text-[11px] text-muted">Sign in with Google to save your profile and scores in the Python game tracker.</p>
         </div>
         <span className="rounded-full bg-[#eaeae2] px-3 py-2 text-[10px] font-medium text-muted">
-          Scheduled refresh in {remainingHours}h {remainingMinutes}m
+          Live leaderboard
         </span>
       </div>
 
       {!isFirebaseConfigured && (
         <p role="alert" className="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
-          Firebase is not configured yet. Add your Firebase web app settings to <code>.env.local</code>, enable Google sign-in, and publish the included Firestore rules.
+          Google sign-in is not configured yet. Add your Firebase web app settings to <code>.env.local</code> and enable Google sign-in.
         </p>
       )}
 
-      {isFirebaseConfigured && (
+      {profile && (
         <p role="status" className="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
-          Online score updates are temporarily paused until game results can be verified by a trusted server. Existing leaderboard data remains available.
+          Verified solo wins add 10 points, losses subtract 10, and draws add 0. Local two-player Tic-tac-toe is not ranked.
         </p>
       )}
 
@@ -149,7 +128,7 @@ function GameDashboard({
           <button
             type="button"
             disabled={!isFirebaseConfigured}
-            onClick={() => onSignIn().catch((error) => setError(error.message))}
+            onClick={() => onSignIn().catch((error) => setError(getSignInErrorMessage(error)))}
             className="inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#4a4b41] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <LogIn size={14} /> Continue with Google
@@ -182,11 +161,11 @@ function GameDashboard({
         )}
       </div>
 
-      {nameError && <p role="alert" className="mt-2 text-[11px] text-red-700">{nameError}</p>}
+      {!profile && nameError && <p role="alert" className="mt-2 text-[11px] text-red-700">{nameError}</p>}
       {gameData.error && <p role="alert" className="mt-2 text-[11px] text-red-700">{gameData.error}</p>}
-      {gameData.loading && <p className="mt-3 text-[11px] text-muted">Loading the shared leaderboard…</p>}
+      {gameData.loading && <p className="mt-3 text-[11px] text-muted">Loading the leaderboard…</p>}
       <p className="mt-2 text-[10px] leading-5 text-muted">
-        Player names are unique. Google sign-in securely reconnects your profile on another device.
+        Player names are unique. Google sign-in reconnects your profile on the same Python score server.
       </p>
 
       {rankedIds.length === 0 ? (
@@ -203,7 +182,7 @@ function GameDashboard({
           <ol>
             {rankedIds.map((id) => {
               const player = gameData.players[id];
-              const rank = gameData.rankRefresh.rankedIds.indexOf(id);
+              const rank = rankedIds.indexOf(id);
               return (
                 <li key={id} className={`grid grid-cols-[48px_1fr_75px_65px] items-center gap-2 border-t border-ink/5 px-3 py-3 text-xs sm:grid-cols-[60px_1fr_100px_90px] sm:px-4 ${id === authUser?.uid ? "bg-[#f3f6eb]" : "bg-white"}`}>
                   <span className={`font-display font-bold ${rank === 0 ? "text-[#829f35]" : "text-muted"}`}>
@@ -218,16 +197,50 @@ function GameDashboard({
           </ol>
         </div>
       )}
+      <section className="mt-5 overflow-hidden rounded-lg border border-ink/10 bg-white" aria-label="Recent game records">
+        <div className="flex items-center justify-between bg-[#f8f8f5] px-3 py-2.5">
+          <h3 className="text-[10px] font-semibold uppercase tracking-wide text-muted">Live game records</h3>
+          <span className="text-[9px] text-muted">Updates as games finish</span>
+        </div>
+        {gameData.recordsLoading ? (
+          <p className="px-3 py-4 text-[11px] text-muted">Loading verified game records…</p>
+        ) : gameData.recentRecords.length === 0 ? (
+          <p className="px-3 py-4 text-[11px] text-muted">Verified wins, losses, and draws will appear here.</p>
+        ) : (
+          <ol className="divide-y divide-ink/5">
+            {gameData.recentRecords.map((record) => {
+              const happenedAt = record.createdAt ? new Date(record.createdAt) : null;
+              const pointChange = record.pointsDelta > 0
+                ? `+${record.pointsDelta}`
+                : `${record.pointsDelta}`;
+              return (
+                <li key={record.id} className="grid grid-cols-[1fr_auto] items-center gap-3 px-3 py-2.5 text-[11px] sm:grid-cols-[1fr_auto_auto]">
+                  <span className="min-w-0 truncate">
+                    <strong className="font-semibold">{record.playerName}</strong>
+                    <span className="text-muted"> · {record.game}</span>
+                    <span className="ml-1 capitalize text-muted">· {record.outcome}</span>
+                  </span>
+                  <span className={`font-semibold ${record.pointsDelta > 0 ? "text-[#5d7326]" : record.pointsDelta < 0 ? "text-red-700" : "text-muted"}`}>
+                    {pointChange} points
+                  </span>
+                  <time className="col-span-2 text-[9px] text-muted sm:col-span-1" dateTime={happenedAt?.toISOString()}>
+                    {happenedAt ? happenedAt.toLocaleString() : "Just now"}
+                  </time>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </section>
       <details className="mt-3 rounded-lg border border-ink/10 bg-[#f8f8f5]">
         <summary className="cursor-pointer px-3 py-2.5 text-[10px] font-semibold">How points work</summary>
         <ul className="space-y-1.5 border-t border-ink/10 px-3 py-2.5 text-[10px] leading-5 text-muted">
-          <li>Memory Match: max(10, 120 − 3 × moves).</li>
-          <li>Tic-tac-toe vs AI: win 30, draw 10, loss 2. Two-player: X win 15, draw 5, otherwise 1.</li>
-          <li>Number Guess: max(10, level tries × 10 − 2 × guesses) for a win; 1 for a loss.</li>
-          <li>Context Guess: max(10, 100 − 2 × guesses) when you find the word.</li>
+          <li>Every verified win adds 10 points; every verified loss subtracts 10; draws change points by 0.</li>
+          <li>Only signed-in solo games and Tic-tac-toe vs AI update the leaderboard.</li>
+          <li>Players are ranked from highest points to lowest. Equal scores use wins, games played, then player name.</li>
         </ul>
       </details>
-      <p className="mt-2 text-[10px] text-muted">Ranks reorder when leaderboard records change and refresh every two hours. Score totals never reset.</p>
+      <p className="mt-2 text-[10px] text-muted">Scores, recent game records, and rankings update live. Score totals never reset.</p>
     </section>
   );
 }
@@ -236,6 +249,56 @@ function useGameScore() {
   const context = useContext(GameScoreContext);
   if (!context) throw new Error("Game components must be rendered inside the game dashboard.");
   return context;
+}
+
+function useVerifiedGame(game, enabled) {
+  const { startGame, submitAction, setScoreError, clearScoreError } = useGameScore();
+  const [sessionId, setSessionId] = useState(null);
+  const [starting, setStarting] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const start = useCallback(async (options = {}) => {
+    if (!enabled) return null;
+    setStarting(true);
+    setSessionId(null);
+    try {
+      const nextSessionId = await startGame(game, options);
+      setSessionId(nextSessionId);
+      setFailed(false);
+      clearScoreError();
+      return nextSessionId;
+    } catch (error) {
+      setFailed(true);
+      setScoreError(error.message || "Could not start a verified game. Please try again.");
+      return null;
+    } finally {
+      setStarting(false);
+    }
+  }, [clearScoreError, enabled, game, setScoreError, startGame]);
+
+  useEffect(() => {
+    if (enabled) {
+      start();
+    } else {
+      setSessionId(null);
+      setFailed(false);
+      setStarting(false);
+    }
+  }, [enabled, start]);
+
+  const action = useCallback(async (payload) => {
+    if (!sessionId) throw new Error("The verified game is not ready.");
+    try {
+      const result = await submitAction(sessionId, payload);
+      clearScoreError();
+      return result;
+    } catch (error) {
+      setScoreError(error.message || "The game result could not be verified.");
+      throw error;
+    }
+  }, [clearScoreError, sessionId, setScoreError, submitAction]);
+
+  return { sessionId, starting, failed, start, action };
 }
 
 const gameOptions = [
@@ -337,38 +400,67 @@ function createDeck() {
 }
 
 function MemoryGame() {
-  const { recordGame } = useGameScore();
+  const { enabled } = useGameScore();
+  const verified = useVerifiedGame("memory", enabled);
   const [cards, setCards] = useState(createDeck);
   const [flipped, setFlipped] = useState([]);
   const [matched, setMatched] = useState([]);
   const [moves, setMoves] = useState(0);
-  const scoredGame = useRef(false);
+  const [gameError, setGameError] = useState("");
+  const verifiedPending = enabled && !verified.sessionId && !verified.failed;
 
   useEffect(() => {
-    if (matched.length === 6 && !scoredGame.current) {
-      scoredGame.current = true;
-      recordGame("Memory Match", Math.max(10, 120 - moves * 3), true);
-    }
-  }, [matched.length, moves, recordGame]);
-
-  useEffect(() => {
-    if (flipped.length !== 2) return undefined;
+    if (flipped.length !== 2 || verified.sessionId) return undefined;
     const [first, second] = flipped;
     if (cards[first].pair === cards[second].pair) {
-      setMatched((current) => [...current, cards[first].pair]);
+      setMatched((current) => [...current, first, second]);
       setFlipped([]);
       return undefined;
     }
 
     const timeoutId = window.setTimeout(() => setFlipped([]), 750);
     return () => window.clearTimeout(timeoutId);
-  }, [cards, flipped]);
+  }, [cards, flipped, verified.sessionId]);
 
-  function flipCard(index) {
-    if (flipped.length === 2 || flipped.includes(index) || matched.includes(cards[index].pair)) return;
+  async function flipCard(index) {
+    if (flipped.length === 2 || flipped.includes(index) || matched.includes(index) || verifiedPending) return;
     const nextFlipped = [...flipped, index];
     setFlipped(nextFlipped);
-    if (nextFlipped.length === 2) setMoves((current) => current + 1);
+    if (nextFlipped.length !== 2) return;
+
+    setMoves((current) => current + 1);
+    if (!verified.sessionId) return;
+
+    try {
+      const result = await verified.action({
+        type: "memoryTurn",
+        first: nextFlipped[0],
+        second: nextFlipped[1],
+      });
+      setCards((current) => current.map((card, cardIndex) => {
+        const pairIndex = cardIndex === nextFlipped[0]
+          ? result.pairs[0]
+          : cardIndex === nextFlipped[1]
+            ? result.pairs[1]
+            : card.pair;
+        const Icon = memoryIcons[pairIndex];
+        return { ...card, pair: pairIndex, Icon };
+      }));
+      setMatched(result.matched);
+      setGameError("");
+      if (result.pairs[0] === result.pairs[1]) {
+        setFlipped([]);
+      } else {
+        window.setTimeout(() => setFlipped([]), 750);
+      }
+    } catch {
+      setCards(createDeck());
+      setFlipped([]);
+      setMatched([]);
+      setMoves(0);
+      setGameError("The server could not verify that turn. A new round has started.");
+      verified.start();
+    }
   }
 
   function reset() {
@@ -376,7 +468,8 @@ function MemoryGame() {
     setFlipped([]);
     setMatched([]);
     setMoves(0);
-    scoredGame.current = false;
+    setGameError("");
+    verified.start();
   }
 
   return (
@@ -388,19 +481,20 @@ function MemoryGame() {
         </div>
         <div className="flex items-center gap-3">
           <span className="rounded-full bg-[#eaeae2] px-3 py-2 text-xs font-medium">Moves <strong>{moves}</strong></span>
-          <span className="rounded-full bg-[#eaeae2] px-3 py-2 text-xs font-medium">Pairs <strong>{matched.length}/6</strong></span>
-          <button type="button" onClick={reset} aria-label="Restart memory game" className="flex h-9 w-9 items-center justify-center rounded-full border border-ink/10 bg-white hover:bg-[#eaeae2]"><RotateCcw size={15} /></button>
+          <span className="rounded-full bg-[#eaeae2] px-3 py-2 text-xs font-medium">Pairs <strong>{matched.length / 2}/6</strong></span>
+          <button type="button" onClick={reset} disabled={flipped.length === 2 || verifiedPending} aria-label="Restart memory game" className="flex h-9 w-9 items-center justify-center rounded-full border border-ink/10 bg-white hover:bg-[#eaeae2] disabled:opacity-50"><RotateCcw size={15} /></button>
         </div>
       </div>
+      {gameError && <p role="alert" className="mb-3 text-center text-xs text-red-700">{gameError}</p>}
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3" role="group" aria-label="Memory match cards">
         {cards.map(({ id, Icon }, index) => {
-          const isOpen = flipped.includes(index) || matched.includes(cards[index].pair);
+          const isOpen = flipped.includes(index) || matched.includes(index);
           return (
             <button
               key={id}
               type="button"
               onClick={() => flipCard(index)}
-              disabled={isOpen || flipped.length === 2}
+              disabled={isOpen || flipped.length === 2 || verifiedPending}
               aria-label={isOpen ? `Card ${index + 1}, revealed` : `Reveal card ${index + 1}`}
               className={`flex aspect-[1.25/1] items-center justify-center rounded-lg border transition duration-200 sm:aspect-[1.5/1] ${
                 isOpen
@@ -413,9 +507,9 @@ function MemoryGame() {
           );
         })}
       </div>
-      {matched.length === 6 && (
+      {matched.length === 12 && (
         <p role="status" className="mt-5 flex items-center justify-center gap-2 text-sm font-semibold text-[#71862f]">
-          <Check size={17} /> All pairs found in {moves} moves. Nice work!
+          <Check size={17} /> All pairs found in {moves} moves. Nice work!{verified.sessionId ? " +10 points." : ""}
         </p>
       )}
     </div>
@@ -514,28 +608,23 @@ function getAIMove(squares, difficulty) {
 }
 
 function TicTacToe() {
-  const { recordGame } = useGameScore();
+  const { enabled } = useGameScore();
   const [mode, setMode] = useState("ai");
   const [difficulty, setDifficulty] = useState("Normal");
   const [squares, setSquares] = useState(Array(9).fill(null));
   const [nextPlayer, setNextPlayer] = useState("X");
   const [scores, setScores] = useState({ X: 0, O: 0 });
-  const scoredRound = useRef(false);
+  const [movePending, setMovePending] = useState(false);
+  const [moveError, setMoveError] = useState("");
+  const verified = useVerifiedGame("tic-tac-toe", enabled && mode === "ai");
   const winningLine = getWinningLine(squares);
   const winner = getWinner(squares);
   const draw = !winner && squares.every(Boolean);
+  const startVerified = verified.start;
+  const verifiedPending = enabled && mode === "ai" && !verified.sessionId && !verified.failed;
 
   useEffect(() => {
-    if ((!winner && !draw) || scoredRound.current) return;
-    scoredRound.current = true;
-    const points = mode === "ai"
-      ? winner === "X" ? 30 : draw ? 10 : 2
-      : winner === "X" ? 15 : draw ? 5 : 1;
-    recordGame("Tic-tac-toe", points, winner === "X");
-  }, [draw, mode, recordGame, winner]);
-
-  useEffect(() => {
-    if (mode !== "ai" || nextPlayer !== "O" || winner || draw) return undefined;
+    if (mode !== "ai" || verified.sessionId || nextPlayer !== "O" || winner || draw) return undefined;
 
     const timeoutId = window.setTimeout(() => {
       const index = getAIMove(squares, difficulty);
@@ -550,7 +639,7 @@ function TicTacToe() {
     }, 350);
 
     return () => window.clearTimeout(timeoutId);
-  }, [difficulty, draw, mode, nextPlayer, squares, winner]);
+  }, [difficulty, draw, mode, nextPlayer, squares, verified.sessionId, winner]);
 
   useEffect(() => {
     if (!draw) return undefined;
@@ -558,14 +647,36 @@ function TicTacToe() {
     const timeoutId = window.setTimeout(() => {
       setSquares(Array(9).fill(null));
       setNextPlayer("X");
-      scoredRound.current = false;
+      if (enabled && mode === "ai") startVerified({ difficulty });
     }, 1400);
 
     return () => window.clearTimeout(timeoutId);
-  }, [draw]);
+  }, [difficulty, draw, enabled, mode, startVerified]);
 
-  function play(index) {
+  async function play(index) {
     if (squares[index] || winner || draw || (mode === "ai" && nextPlayer === "O")) return;
+    if (verifiedPending) return;
+    if (mode === "ai" && verified.sessionId) {
+      setMovePending(true);
+      try {
+        const result = await verified.action({ type: "ticTacToeMove", index });
+        setSquares(result.board);
+        setNextPlayer(result.nextPlayer || "X");
+        setMoveError("");
+        if (result.winner) {
+          setScores((current) => ({ ...current, [result.winner]: current[result.winner] + 1 }));
+        }
+      } catch {
+        setMoveError("The server could not verify that move. A new round has started.");
+        verified.start({ difficulty });
+        setSquares(Array(9).fill(null));
+        setNextPlayer("X");
+      } finally {
+        setMovePending(false);
+      }
+      return;
+    }
+
     const updated = [...squares];
     updated[index] = nextPlayer;
     const roundWinner = getWinner(updated);
@@ -577,7 +688,8 @@ function TicTacToe() {
   function resetRound() {
     setSquares(Array(9).fill(null));
     setNextPlayer("X");
-    scoredRound.current = false;
+    setMoveError("");
+    if (enabled && mode === "ai") verified.start({ difficulty });
   }
 
   function resetMatch() {
@@ -587,17 +699,26 @@ function TicTacToe() {
 
   function changeMode(nextMode) {
     setMode(nextMode);
-    resetMatch();
+    setSquares(Array(9).fill(null));
+    setNextPlayer("X");
+    setScores({ X: 0, O: 0 });
+    setMoveError("");
+    if (nextMode === mode && enabled && nextMode === "ai") {
+      startVerified({ difficulty });
+    }
   }
 
   function changeDifficulty(nextDifficulty) {
     setDifficulty(nextDifficulty);
-    resetRound();
+    setSquares(Array(9).fill(null));
+    setNextPlayer("X");
+    if (enabled && mode === "ai") startVerified({ difficulty: nextDifficulty });
   }
 
   return (
     <div className="grid items-center gap-7 md:grid-cols-[1fr_0.85fr]">
       <div>
+        {moveError && <p role="alert" className="mb-3 text-center text-xs text-red-700 md:text-left">{moveError}</p>}
         <div className="grid aspect-square max-h-[390px] grid-cols-3 gap-2 sm:gap-3">
           {squares.map((square, index) => (
             <button
@@ -610,7 +731,7 @@ function TicTacToe() {
                   ? "bg-[#dce9bd] ring-2 ring-inset ring-[#829f35]"
                   : "bg-[#eaeae2] hover:bg-[#e2e5d8]"
               }`}
-              disabled={Boolean(square) || Boolean(winner) || draw || (mode === "ai" && nextPlayer === "O")}
+              disabled={Boolean(square) || Boolean(winner) || draw || movePending || (mode === "ai" && nextPlayer === "O") || verifiedPending}
             >
               {square === "X" ? <span className="text-[#71862f]">X</span> : square === "O" ? <span className="text-ink/70">O</span> : null}
             </button>
@@ -655,9 +776,9 @@ function TicTacToe() {
         )}
         <p className="mt-3 text-sm text-muted" role="status" aria-live="polite">
           {winner
-            ? `${mode === "ai" ? winner === "X" ? "You win" : "AI wins" : `Player ${winner} wins`} this round!`
+            ? `${mode === "ai" ? winner === "X" ? "You win" : "AI wins" : `Player ${winner} wins`} this round!${mode === "ai" && verified.sessionId ? winner === "X" ? " +10 points." : " -10 points." : ""}`
             : draw
-              ? "It’s a draw — starting a new game…"
+              ? `It’s a draw — starting a new game…${mode === "ai" && verified.sessionId ? " 0 points." : ""}`
               : mode === "ai" && nextPlayer === "O"
                 ? "AI is thinking…"
                 : mode === "ai"
@@ -693,17 +814,21 @@ function TicTacToe() {
 }
 
 function ContextGuessGame() {
-  const { recordGame } = useGameScore();
+  const { enabled } = useGameScore();
+  const verified = useVerifiedGame("context-guess", enabled);
   const [puzzle, setPuzzle] = useState(null);
   const [rankByWord, setRankByWord] = useState(null);
   const [guess, setGuess] = useState("");
   const [guesses, setGuesses] = useState([]);
   const [message, setMessage] = useState("");
   const [won, setWon] = useState(false);
+  const [complete, setComplete] = useState(false);
   const [loading, setLoading] = useState(true);
   const [modelError, setModelError] = useState("");
+  const [guessPending, setGuessPending] = useState(false);
 
   useEffect(() => {
+    if (enabled && !verified.failed) return undefined;
     let active = true;
 
     getContextPuzzle()
@@ -722,7 +847,11 @@ function ContextGuessGame() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [enabled, verified.failed]);
+
+  useEffect(() => {
+    if (verified.sessionId) setLoading(false);
+  }, [verified.sessionId]);
 
   const bestRank = guesses.reduce(
     (best, item) => item.rank < CONTEXT_UNLISTED_RANK && item.rank < best ? item.rank : best,
@@ -731,9 +860,9 @@ function ContextGuessGame() {
   const hasRankedGuesses = bestRank < Infinity;
   const hasUnrankedGuesses = guesses.some((item) => item.rank >= CONTEXT_UNLISTED_RANK);
 
-  function submitGuess(event) {
+  async function submitGuess(event) {
     event.preventDefault();
-    if (!puzzle || !rankByWord || loading) return;
+    if (loading || guessPending || (verified.sessionId ? complete : !puzzle || !rankByWord)) return;
     const word = guess.trim().toLowerCase();
 
     if (!/^[a-z]+$/.test(word)) {
@@ -746,11 +875,47 @@ function ContextGuessGame() {
       return;
     }
 
+    if (verified.sessionId) {
+      setGuessPending(true);
+      try {
+        const result = await verified.action({ type: "contextGuess", guess: word });
+        setGuesses((current) => [...current, { word, rank: result.rank }]);
+        setGuess("");
+        if (result.status === "correct") {
+          setPuzzle(result.answer);
+          setWon(true);
+          setComplete(true);
+          setMessage(`You found it — “${result.answer}” is rank #1! +10 points.`);
+        } else if (result.status === "lost") {
+          setPuzzle(result.answer);
+          setComplete(true);
+          setMessage(`No guesses left. The word was “${result.answer}”. -10 points.`);
+        } else {
+          setMessage(
+            result.rank >= CONTEXT_UNLISTED_RANK
+              ? `“${word}” is outside this game's ${CONTEXT_VOCABULARY_SIZE.toLocaleString()}-word vocabulary and is ranked #${CONTEXT_UNLISTED_RANK.toLocaleString()}+. Try a related word.`
+              : result.rank <= 10
+                ? `Extremely close! “${word}” is rank #${result.rank}.`
+                : result.rank <= 100
+                  ? `Very close! “${word}” is rank #${result.rank}.`
+                  : result.rank <= 500
+                    ? `Close! “${word}” is rank #${result.rank}.`
+                    : `Getting warmer — “${word}” is rank #${result.rank}.`,
+          );
+        }
+      } catch (error) {
+        setMessage(error.message || "The guess could not be verified.");
+      } finally {
+        setGuessPending(false);
+      }
+      return;
+    }
+
     if (word === puzzle) {
       setGuesses((current) => [...current, { word, rank: 1 }]);
       setMessage(`You found it — “${puzzle}” is rank #1!`);
       setWon(true);
-      recordGame("Context Guess", Math.max(10, 100 - guesses.length * 2), true);
+      setComplete(true);
       setGuess("");
       return;
     }
@@ -778,8 +943,15 @@ function ContextGuessGame() {
     setGuesses([]);
     setMessage("");
     setWon(false);
+    setComplete(false);
 
     try {
+      if (enabled && await verified.start()) {
+        setPuzzle(null);
+        setRankByWord(null);
+        setLoading(false);
+        return;
+      }
       const nextPuzzle = await getContextPuzzle(puzzle);
       setPuzzle(nextPuzzle.answer);
       setRankByWord(nextPuzzle.rankByWord);
@@ -808,7 +980,7 @@ function ContextGuessGame() {
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.13em] text-muted">Mystery word</p>
             <p className="mt-1 font-display text-lg font-semibold tracking-[-0.04em]">
-              {won ? puzzle : "?????"}
+              {complete ? puzzle : "?????"}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -834,10 +1006,10 @@ function ContextGuessGame() {
             value={guess}
             onChange={(event) => setGuess(event.target.value)}
             placeholder="Type any word..."
-            disabled={won || loading || Boolean(modelError)}
+            disabled={complete || loading || guessPending || Boolean(modelError)}
             className="min-w-0 flex-1 rounded-full border border-ink/15 px-5 py-3 text-sm outline-none transition focus:border-[#829f35] disabled:bg-[#f8f8f5]"
           />
-          <button type="submit" disabled={won || loading || Boolean(modelError)} className="rounded-full bg-ink px-6 py-3 text-xs font-semibold text-white transition hover:bg-[#4a4b41] disabled:cursor-not-allowed disabled:opacity-50">
+          <button type="submit" disabled={complete || loading || guessPending || Boolean(modelError)} className="rounded-full bg-ink px-6 py-3 text-xs font-semibold text-white transition hover:bg-[#4a4b41] disabled:cursor-not-allowed disabled:opacity-50">
             Guess word
           </button>
         </form>
@@ -848,7 +1020,7 @@ function ContextGuessGame() {
           </p>
         )}
 
-        {won && (
+        {complete && (
           <button type="button" onClick={startNewPuzzle} disabled={loading} className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#829f35] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#71862f] disabled:cursor-wait disabled:opacity-60">
             <RotateCcw size={14} /> Play a new word
           </button>
@@ -891,7 +1063,8 @@ function ContextGuessGame() {
 }
 
 function NumberGuessGame() {
-  const { recordGame } = useGameScore();
+  const { enabled } = useGameScore();
+  const verified = useVerifiedGame("number-guess", enabled);
   const [runtime, setRuntime] = useState(null);
   const [difficulty, setDifficulty] = useState("Easy");
   const [loading, setLoading] = useState(true);
@@ -904,6 +1077,12 @@ function NumberGuessGame() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    if (enabled && !verified.failed) {
+      setLoading(!verified.sessionId);
+      setError("");
+      return undefined;
+    }
+
     let active = true;
     setLoading(true);
     setError("");
@@ -930,14 +1109,14 @@ function NumberGuessGame() {
     return () => {
       active = false;
     };
-  }, [retry]);
+  }, [enabled, retry, verified.failed, verified.sessionId]);
 
   const level = guessLevels.find((item) => item.name === difficulty);
 
   async function handleSubmit(event) {
     event.preventDefault();
     const value = Number(guess);
-    if (!runtime || submitting || complete || !Number.isInteger(value) || value < 1 || value > level.maximum) {
+    if (submitting || complete || !Number.isInteger(value) || value < 1 || value > level.maximum) {
       setMessage(`Enter a whole number from 1 to ${level.maximum}.`);
       return;
     }
@@ -945,17 +1124,31 @@ function NumberGuessGame() {
     setSubmitting(true);
     setMessage("");
     try {
+      if (verified.sessionId) {
+        const result = await verified.action({ type: "numberGuess", guess: value });
+        const resultMessage = result.status === "correct"
+          ? `You got it! The number was ${result.answer}. +10 points.`
+          : result.status === "lost"
+            ? `No guesses left. The number was ${result.answer}. -10 points.`
+            : result.status === "low"
+              ? "Too low — try a higher number."
+              : "Too high — try a lower number.";
+        setAttempts((current) => [...current, { value, result: result.status }]);
+        setMessage(resultMessage);
+        setComplete(result.status === "correct" || result.status === "lost");
+        setGuess("");
+        return;
+      }
+
+      if (!runtime) {
+        setMessage("The game is still starting. Please try again.");
+        return;
+      }
       const resultJson = await runtime.runPythonAsync(`submit_guess(${value})`);
       const result = JSON.parse(resultJson);
       setAttempts((current) => [...current, { value, result: result.result }]);
       setMessage(result.message);
       setComplete(result.result === "correct" || result.result === "lost");
-      if (result.result === "correct" || result.result === "lost") {
-        const points = result.result === "correct"
-          ? Math.max(10, level.attempts * 10 - result.attempts * 2)
-          : 1;
-        recordGame("Number Guess", points, result.result === "correct");
-      }
       setGuess("");
     } catch {
       setMessage("Something went wrong while checking that guess. Please try again.");
@@ -965,10 +1158,11 @@ function NumberGuessGame() {
   }
 
   async function startNewGame() {
-    if (!runtime || submitting) return;
+    if ((!runtime && !verified.sessionId) || submitting) return;
     setSubmitting(true);
     try {
-      await runtime.runPythonAsync("reset_game()");
+      if (runtime) await runtime.runPythonAsync("reset_game()");
+      if (enabled) await verified.start({ difficulty });
       setAttempts([]);
       setMessage("New number picked. Good luck!");
       setComplete(false);
@@ -981,13 +1175,16 @@ function NumberGuessGame() {
   }
 
   async function changeDifficulty(nextDifficulty) {
-    if (!runtime || submitting || nextDifficulty === difficulty) return;
+    if ((!runtime && !verified.sessionId) || submitting || nextDifficulty === difficulty) return;
     const nextLevel = guessLevels.find((item) => item.name === nextDifficulty);
     setSubmitting(true);
     try {
-      await runtime.runPythonAsync(
-        `set_level(${nextLevel.maximum}, ${nextLevel.attempts})`,
-      );
+      if (runtime) {
+        await runtime.runPythonAsync(
+          `set_level(${nextLevel.maximum}, ${nextLevel.attempts})`,
+        );
+      }
+      if (enabled) await verified.start({ difficulty: nextDifficulty });
       setDifficulty(nextDifficulty);
       setAttempts([]);
       setMessage(`New ${nextDifficulty.toLowerCase()} game started.`);
@@ -1031,7 +1228,7 @@ function NumberGuessGame() {
                     key={item.name}
                     type="button"
                     aria-pressed={difficulty === item.name}
-                    disabled={submitting}
+                    disabled={submitting || verified.starting}
                     onClick={() => changeDifficulty(item.name)}
                     className={`rounded-lg border px-3 py-2.5 text-left transition disabled:opacity-60 ${
                       difficulty === item.name
@@ -1064,10 +1261,10 @@ function NumberGuessGame() {
                 value={guess}
                 onChange={(event) => setGuess(event.target.value)}
                 placeholder={`Enter 1–${level.maximum}`}
-                disabled={complete || submitting}
+                disabled={complete || submitting || verified.starting}
                 className="min-w-0 flex-1 rounded-full border border-ink/15 px-5 py-3 text-sm outline-none transition focus:border-[#829f35] disabled:bg-[#f8f8f5]"
               />
-              <button type="submit" disabled={complete || submitting} className="rounded-full bg-ink px-6 py-3 text-xs font-semibold text-white transition hover:bg-[#4a4b41] disabled:cursor-not-allowed disabled:opacity-50">
+              <button type="submit" disabled={complete || submitting || verified.starting} className="rounded-full bg-ink px-6 py-3 text-xs font-semibold text-white transition hover:bg-[#4a4b41] disabled:cursor-not-allowed disabled:opacity-50">
                 {submitting ? "Checking…" : "Make a guess"}
               </button>
             </form>
@@ -1079,7 +1276,7 @@ function NumberGuessGame() {
             )}
 
             {complete && (
-              <button type="button" onClick={startNewGame} disabled={submitting} className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#829f35] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#71862f] disabled:opacity-50">
+              <button type="button" onClick={startNewGame} disabled={submitting || verified.starting} className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#829f35] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#71862f] disabled:opacity-50">
                 <RotateCcw size={14} /> Play again
               </button>
             )}
@@ -1115,12 +1312,10 @@ export default function GamesPage() {
   const [activeGame, setActiveGame] = useState("memory");
   const [gameData, setGameData] = useState({
     players: {},
+    recentRecords: [],
     loading: true,
+    recordsLoading: true,
     error: "",
-  });
-  const [rankRefresh, setRankRefresh] = useState({
-    rankedIds: [],
-    rankedAt: Date.now(),
   });
   const [authUser, setAuthUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -1129,7 +1324,6 @@ export default function GamesPage() {
   useEffect(() => {
     if (!isFirebaseConfigured) {
       setAuthLoading(false);
-      setGameData((current) => ({ ...current, loading: false }));
       return undefined;
     }
 
@@ -1140,28 +1334,23 @@ export default function GamesPage() {
   }, []);
 
   useEffect(() => {
-    if (!isFirebaseConfigured) return undefined;
-
-    let firstSnapshot = true;
-    return listenToPlayers(
-      (playerList) => {
-        const players = Object.fromEntries(playerList.map(({ id, ...player }) => [id, player]));
-        setGameData((current) => ({ ...current, players, loading: false, error: "" }));
-        setRankRefresh((current) => {
-          const now = Date.now();
-          const refreshDue = firstSnapshot || now - current.rankedAt >= RANK_REFRESH_INTERVAL;
-          firstSnapshot = false;
-          return {
-            rankedIds: getRankedPlayerIds(players),
-            rankedAt: refreshDue ? now : current.rankedAt,
-          };
-        });
+    return listenToGameDashboard(
+      ({ players, recentRecords }) => {
+        setGameData((current) => ({
+          ...current,
+          players: Object.fromEntries(players.map(({ id, ...player }) => [id, player])),
+          recentRecords,
+          loading: false,
+          recordsLoading: false,
+          error: "",
+        }));
       },
       (error) => {
         setGameData((current) => ({
           ...current,
           loading: false,
-          error: `Could not load the Firebase leaderboard: ${error.message}`,
+          recordsLoading: false,
+          error: `Could not load the Python game tracker: ${error.message}`,
         }));
       },
     );
@@ -1179,14 +1368,33 @@ export default function GamesPage() {
     }
   }
 
-  const recordGame = useCallback((game) => {
+  const startGame = useCallback(
+    (game, options) => startVerifiedGame(game, options),
+    [],
+  );
+  const submitAction = useCallback(
+    (sessionId, action) => submitVerifiedGameAction(sessionId, action),
+    [],
+  );
+  const setScoreError = useCallback((message) => {
     setGameData((current) => ({
       ...current,
-      error: `Online score updates are paused; your ${game} result was not saved.`,
+      error: `Could not verify score: ${message}`,
     }));
   }, []);
-
-  const scoreContext = useMemo(() => ({ recordGame }), [recordGame]);
+  const clearScoreError = useCallback(() => {
+    setGameData((current) => ({
+      ...current,
+      error: current.error.startsWith("Could not verify score: ") ? "" : current.error,
+    }));
+  }, []);
+  const scoreContext = useMemo(() => ({
+    enabled: Boolean(profile),
+    startGame,
+    submitAction,
+    setScoreError,
+    clearScoreError,
+  }), [clearScoreError, profile, setScoreError, startGame, submitAction]);
 
   return (
     <div className="min-h-screen bg-paper text-ink">
@@ -1223,13 +1431,12 @@ export default function GamesPage() {
           </section>
 
           <GameDashboard
-            gameData={{ ...gameData, rankRefresh }}
+            gameData={gameData}
             authUser={authUser}
             profile={profile}
             authLoading={authLoading}
             profileSaving={profileSaving}
             setError={(error) => setGameData((current) => ({ ...current, error }))}
-            setRankRefresh={setRankRefresh}
             onSignIn={signInWithGoogle}
             onSignOut={signOutPlayer}
             onCreateProfile={createProfile}
@@ -1261,12 +1468,12 @@ export default function GamesPage() {
 
           <section className="games-enter mt-6 rounded-xl border border-ink/10 bg-white/80 p-4 shadow-sm sm:p-7" aria-label="Game board">
             {activeGame === "memory"
-              ? <MemoryGame key="memory" />
+              ? <MemoryGame key={`memory-${profile ? authUser.uid : "guest"}`} />
               : activeGame === "tic-tac-toe"
-                ? <TicTacToe key="tic-tac-toe" />
+                ? <TicTacToe key={`tic-tac-toe-${profile ? authUser.uid : "guest"}`} />
                 : activeGame === "number-guess"
-                  ? <NumberGuessGame key="number-guess" />
-                  : <ContextGuessGame key="context-guess" />}
+                  ? <NumberGuessGame key={`number-guess-${profile ? authUser.uid : "guest"}`} />
+                  : <ContextGuessGame key={`context-guess-${profile ? authUser.uid : "guest"}`} />}
           </section>
         </GameScoreContext.Provider>
 

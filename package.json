@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:score-api": "python -m uvicorn api.index:app --reload --host 127.0.0.1 --port 8000 --env-file .env.local",
     "build": "vite build",
     "preview": "vite preview",
     "generate:context-data": "node scripts/generate-context-data.js"

@@ -43,5 +43,14 @@ service cloud.firestore {
         ).data.name;
       allow update, delete: if false;
     }
+
+    match /gameSessions/{sessionId} {
+      allow read, write: if false;
+    }
+
+    match /gameRecords/{recordId} {
+      allow read: if true;
+      allow write: if false;
+    }
   }
 }

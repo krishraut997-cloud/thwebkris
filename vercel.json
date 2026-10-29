@@ -3,8 +3,18 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/api/dashboard",
+      "destination": "/api?view=dashboard"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "api/index.py": {
+      "includeFiles": "score_backend/data/**",
+      "maxDuration": 30
+    }
+  }
 }
