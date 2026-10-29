@@ -197,41 +197,6 @@ function GameDashboard({
           </ol>
         </div>
       )}
-      <section className="mt-5 overflow-hidden rounded-lg border border-ink/10 bg-white" aria-label="Recent game records">
-        <div className="flex items-center justify-between bg-[#f8f8f5] px-3 py-2.5">
-          <h3 className="text-[10px] font-semibold uppercase tracking-wide text-muted">Live game records</h3>
-          <span className="text-[9px] text-muted">Updates as games finish</span>
-        </div>
-        {gameData.recordsLoading ? (
-          <p className="px-3 py-4 text-[11px] text-muted">Loading verified game records…</p>
-        ) : gameData.recentRecords.length === 0 ? (
-          <p className="px-3 py-4 text-[11px] text-muted">Verified wins, losses, and draws will appear here.</p>
-        ) : (
-          <ol className="divide-y divide-ink/5">
-            {gameData.recentRecords.map((record) => {
-              const happenedAt = record.createdAt ? new Date(record.createdAt) : null;
-              const pointChange = record.pointsDelta > 0
-                ? `+${record.pointsDelta}`
-                : `${record.pointsDelta}`;
-              return (
-                <li key={record.id} className="grid grid-cols-[1fr_auto] items-center gap-3 px-3 py-2.5 text-[11px] sm:grid-cols-[1fr_auto_auto]">
-                  <span className="min-w-0 truncate">
-                    <strong className="font-semibold">{record.playerName}</strong>
-                    <span className="text-muted"> · {record.game}</span>
-                    <span className="ml-1 capitalize text-muted">· {record.outcome}</span>
-                  </span>
-                  <span className={`font-semibold ${record.pointsDelta > 0 ? "text-[#5d7326]" : record.pointsDelta < 0 ? "text-red-700" : "text-muted"}`}>
-                    {pointChange} points
-                  </span>
-                  <time className="col-span-2 text-[9px] text-muted sm:col-span-1" dateTime={happenedAt?.toISOString()}>
-                    {happenedAt ? happenedAt.toLocaleString() : "Just now"}
-                  </time>
-                </li>
-              );
-            })}
-          </ol>
-        )}
-      </section>
       <details className="mt-3 rounded-lg border border-ink/10 bg-[#f8f8f5]">
         <summary className="cursor-pointer px-3 py-2.5 text-[10px] font-semibold">How points work</summary>
         <ul className="space-y-1.5 border-t border-ink/10 px-3 py-2.5 text-[10px] leading-5 text-muted">
