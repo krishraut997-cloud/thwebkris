@@ -39,6 +39,7 @@ import {
 } from "./contextModel.js";
 import AdSenseSlot from "./AdSenseSlot.jsx";
 import { gamePages } from "./gameMeta.js";
+import StyleSwitcher from "./StyleSwitcher.jsx";
 
 const HOME_PATH = import.meta.env.BASE_URL;
 const GameScoreContext = createContext(null);
@@ -64,17 +65,6 @@ function getGameUrl(game) {
   return `${HOME_PATH}games/${game.slug}`;
 }
 
-function formatRecordDate(value) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Recent";
-  return date.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
 function getRankedPlayerIds(players) {
   return Object.entries(players)
     .sort(([, first], [, second]) =>
@@ -89,7 +79,7 @@ function getRankedPlayerIds(players) {
 function getSignInErrorMessage(error) {
   if (error?.code === "auth/unauthorized-domain") {
     const hostname = window.location.hostname;
-    return `Firebase sign-in is not enabled for ${hostname}. Open this page at http://localhost:5173 for local development, or add ${hostname} under Firebase Console → Authentication → Settings → Authorized domains.`;
+    return `Firebase sign-in is not enabled for ${hostname}. A Firebase project owner must add this domain to the project's Authorized domains.`;
   }
   return error?.message || "Google sign-in failed. Please try again.";
 }
@@ -138,8 +128,12 @@ function GameDashboard({
           <h2 className="mt-2 font-display text-2xl font-semibold tracking-[-0.06em]">Players & rankings</h2>
           <p className="mt-1 text-[11px] text-muted">Sign in with Google to save your profile and scores in the Python game tracker.</p>
         </div>
-        <span className="rounded-full bg-[#eaeae2] px-3 py-2 text-[10px] font-medium text-muted">
-          Live leaderboard
+        <span className="inline-flex items-center gap-2 rounded-full bg-[#eaeae2] px-3 py-2 text-[10px] font-medium text-muted" aria-live="polite">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#829f35] opacity-40" />
+            <span className="relative h-2 w-2 rounded-full bg-[#829f35]" />
+          </span>
+          Live · updates every 5 seconds
         </span>
       </div>
 
@@ -196,13 +190,31 @@ function GameDashboard({
       </div>
 
       {!profile && nameError && <p role="alert" className="mt-2 text-[11px] text-red-700">{nameError}</p>}
-      {gameData.error && <p role="alert" className="mt-2 text-[11px] text-red-700">{gameData.error}</p>}
+      {gameData.error && (
+        <p role="alert" className="mt-2 text-[11px] leading-5 text-red-700">
+          {gameData.error}
+          {gameData.error.includes("Firebase sign-in is not enabled for ") && (
+            <>
+              {" "}
+              <a
+                href={`https://console.firebase.google.com/project/${encodeURIComponent(import.meta.env.VITE_FIREBASE_PROJECT_ID)}/authentication/settings`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold underline underline-offset-2"
+              >
+                Open Firebase Authorized domains
+              </a>
+              {" "}and add <code>krishraut997-cloud.github.io</code> (the hostname only, without <code>/thwebkris</code>).
+            </>
+          )}
+        </p>
+      )}
       {gameData.loading && <p className="mt-3 text-[11px] text-muted">Loading the leaderboard…</p>}
       <p className="mt-2 text-[10px] leading-5 text-muted">
         Player names are unique. Google sign-in reconnects your profile on the same Python score server.
       </p>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-2">
+      <div className="mt-5">
         <section className="rounded-lg border border-ink/10 bg-[#f8f8f5] p-4" aria-labelledby="weekly-leaderboard-title">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -224,30 +236,6 @@ function GameDashboard({
           ) : (
             <p className="mt-4 rounded-md border border-dashed border-ink/15 px-3 py-4 text-center text-[11px] leading-5 text-muted">
               {gameData.loading ? "Loading this week’s scores…" : "No scored games this week yet. Play a round to get on the board."}
-            </p>
-          )}
-        </section>
-
-        <section className="rounded-lg border border-ink/10 bg-[#f8f8f5] p-4" aria-labelledby="recent-activity-title">
-          <h3 id="recent-activity-title" className="text-sm font-semibold">Recent player activity</h3>
-          <p className="mt-1 text-[10px] text-muted">Latest verified game results</p>
-          {gameData.recentRecords.length ? (
-            <ol className="mt-3 divide-y divide-ink/5">
-              {gameData.recentRecords.slice(0, 5).map((record) => (
-                <li key={record.id} className="flex items-center justify-between gap-3 py-2.5 text-[11px]">
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">{record.playerName} <span className="font-normal text-muted">· {gameOptions.find((game) => game.id === record.game)?.title || record.game}</span></p>
-                    <p className="mt-0.5 text-[10px] text-muted">{formatRecordDate(record.createdAt)}</p>
-                  </div>
-                  <span className={`shrink-0 font-semibold ${record.pointsDelta > 0 ? "text-[#71862f]" : record.pointsDelta < 0 ? "text-red-700" : "text-muted"}`}>
-                    {record.pointsDelta > 0 ? "+" : ""}{record.pointsDelta} pts
-                  </span>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p className="mt-4 rounded-md border border-dashed border-ink/15 px-3 py-4 text-center text-[11px] text-muted">
-              {gameData.loading ? "Loading recent games…" : "Completed games will appear here."}
             </p>
           )}
         </section>
@@ -293,7 +281,7 @@ function GameDashboard({
           <li>Players are ranked from highest points to lowest. Equal scores use wins, games played, then player name.</li>
         </ul>
       </details>
-      <p className="mt-2 text-[10px] text-muted">Scores and player activity refresh every five seconds. Weekly points cover the last seven days; all-time totals never reset.</p>
+      <p className="mt-2 text-[10px] text-muted">Weekly and all-time scores refresh every five seconds. Weekly points cover the last seven days; all-time totals never reset.</p>
     </section>
   );
 }
@@ -1354,16 +1342,14 @@ function NumberGuessGame() {
   );
 }
 
-export default function GamesPage() {
+export default function GamesPage({ designStyle, setDesignStyle }) {
   const pathSlug = window.location.pathname.replace(/\/+$/, "").split("/").pop();
   const currentGame = gamePages.find((game) => game.slug === pathSlug);
   const [activeGame] = useState(currentGame?.id || "memory");
   const [gameData, setGameData] = useState({
     players: {},
     weeklyPlayers: [],
-    recentRecords: [],
     loading: true,
-    recordsLoading: true,
     error: "",
   });
   const [authUser, setAuthUser] = useState(null);
@@ -1425,14 +1411,12 @@ export default function GamesPage() {
   useEffect(() => {
     if (currentGame) return undefined;
     return listenToGameDashboard(
-      ({ players, weeklyPlayers, recentRecords }) => {
+      ({ players, weeklyPlayers }) => {
         setGameData((current) => ({
           ...current,
           players: Object.fromEntries(players.map(({ id, ...player }) => [id, player])),
           weeklyPlayers,
-          recentRecords,
           loading: false,
-          recordsLoading: false,
           error: "",
         }));
       },
@@ -1440,7 +1424,6 @@ export default function GamesPage() {
         setGameData((current) => ({
           ...current,
           loading: false,
-          recordsLoading: false,
           error: `Could not load the Python game tracker: ${error.message}`,
         }));
       },
@@ -1495,10 +1478,16 @@ export default function GamesPage() {
           <a href={HOME_PATH} className="font-display text-sm font-extrabold tracking-[-0.06em]">
             KR<span className="text-[#829f35]">.</span>
           </a>
-          <a href={HOME_PATH} className="inline-flex min-h-11 items-center gap-2 text-xs font-semibold text-muted transition hover:text-ink">
-            <ArrowLeft size={14} /> Back to portfolio
-          </a>
+          <div className="flex items-center gap-3">
+            <StyleSwitcher value={designStyle} onChange={setDesignStyle} className="hidden sm:inline-flex" />
+            <a href={HOME_PATH} className="inline-flex min-h-11 items-center gap-2 text-xs font-semibold text-muted transition hover:text-ink">
+              <ArrowLeft size={14} /> Back to portfolio
+            </a>
+          </div>
         </nav>
+        <div className="flex justify-end px-5 pb-3 sm:hidden">
+          <StyleSwitcher value={designStyle} onChange={setDesignStyle} />
+        </div>
       </header>
 
       <main className="mx-auto max-w-[1100px] px-5 pb-16 pt-12 sm:px-8 sm:pt-16">
@@ -1572,11 +1561,14 @@ export default function GamesPage() {
           <section className="mt-10" aria-label={currentGame ? "More games" : "Choose a game"}>
             {currentGame && <h2 className="mb-4 font-display text-xl font-semibold tracking-[-0.05em]">More games</h2>}
             <div className="grid gap-3 sm:grid-cols-2">
-            {gameOptions.filter((game) => !currentGame || game.id !== currentGame.id).map(({ id, slug, title, description, icon: Icon, meta }) => (
+            {gameOptions.filter((game) => !currentGame || game.id !== currentGame.id).map(({ id, slug, title, description, icon: Icon, meta }, index) => (
               <a
                 key={id}
                 href={getGameUrl({ slug })}
-                className="flex min-h-[92px] items-center gap-4 rounded-lg border border-ink/10 bg-white/70 p-4 text-left transition hover:border-ink/30 sm:p-5"
+                style={{ "--card-delay": `${index * 90}ms` }}
+                onPointerMove={handleGameCardPointerMove}
+                onPointerLeave={handleGameCardPointerLeave}
+                className="motion-card game-choice-card game-card-enter flex min-h-[92px] items-center gap-4 rounded-lg border border-ink/10 bg-white/70 p-4 text-left sm:p-5"
               >
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#eaeae2] text-ink"><Icon size={20} /></span>
                 <span className="min-w-0 flex-1">
@@ -1616,4 +1608,24 @@ export default function GamesPage() {
       </main>
     </div>
   );
+}
+
+function handleGameCardPointerMove(event) {
+  if (
+    document.documentElement.dataset.style !== "clean-motion" ||
+    event.pointerType === "touch" ||
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  ) {
+    return;
+  }
+
+  const card = event.currentTarget;
+  const bounds = card.getBoundingClientRect();
+  const x = (event.clientX - bounds.left) / bounds.width - 0.5;
+  const y = (event.clientY - bounds.top) / bounds.height - 0.5;
+  card.style.transform = `perspective(900px) rotateX(${-y * 5}deg) rotateY(${x * 5}deg) translateY(-4px)`;
+}
+
+function handleGameCardPointerLeave(event) {
+  event.currentTarget.style.transform = "";
 }

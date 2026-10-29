@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import AdSenseSlot from "./AdSenseSlot.jsx";
+import StyleSwitcher, { useDesignStyle } from "./StyleSwitcher.jsx";
 
 const GamesPage = lazy(() => import("./GamesPage.jsx"));
 const BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -63,7 +64,7 @@ const skillGroups = [
   },
 ];
 
-function Header() {
+function Header({ designStyle, setDesignStyle }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const closeMenu = () => setMenuOpen(false);
@@ -83,7 +84,7 @@ function Header() {
           KR<span className="text-[#829f35]">.</span>
         </a>
 
-        <div className="hidden items-center gap-9 md:flex">
+        <div className="hidden items-center gap-9 xl:flex">
           <a className="nav-link" href="#work">Work</a>
           <a className="nav-link" href={GAMES_PATH}>Play</a>
           <a className="nav-link" href="#python-projects">Python</a>
@@ -94,25 +95,32 @@ function Header() {
 
         <a
           href="#contact"
-          className="hidden items-center gap-2 rounded-full border border-ink/15 px-5 py-2.5 text-[12px] font-semibold transition-colors hover:border-ink hover:bg-ink hover:text-paper md:flex"
+          className="hidden items-center gap-2 rounded-full border border-ink/15 px-5 py-2.5 text-[12px] font-semibold transition-colors hover:border-ink hover:bg-ink hover:text-paper xl:flex"
         >
           Get in touch <ArrowUpRight size={14} strokeWidth={1.8} />
         </a>
+
+        <StyleSwitcher
+          value={designStyle}
+          onChange={setDesignStyle}
+          className="hidden xl:inline-flex"
+        />
 
         <button
           type="button"
           aria-label={menuOpen ? "Close menu" : "Open menu"}
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen(!menuOpen)}
-          className="rounded-full p-2 md:hidden"
+          className="rounded-full p-2 xl:hidden"
         >
           {menuOpen ? <X size={21} /> : <Menu size={21} />}
         </button>
       </nav>
 
       {menuOpen && (
-        <div className="absolute left-0 right-0 top-full border-y border-ink/10 bg-paper px-6 py-7 shadow-lg md:hidden">
+        <div className="absolute left-0 right-0 top-full border-y border-ink/10 bg-paper px-6 py-7 shadow-lg xl:hidden">
           <div className="flex flex-col gap-5">
+            <StyleSwitcher value={designStyle} onChange={setDesignStyle} className="w-fit" />
             {[["Work", "#work"], ["Play games", GAMES_PATH], ["Python", "#python-projects"], ["Skills", "#skills"], ["About", "#about"], ["Contact", "#contact"]].map(
               ([label, href]) => (
                 <a
@@ -233,6 +241,18 @@ function Hero() {
   );
 }
 
+function LimeMarquee() {
+  const message = "BUILD · PLAY · LEARN · MAKE SOMETHING GOOD · ";
+  return (
+    <div className="lime-marquee" aria-label="Build, play, learn, make something good">
+      <div className="lime-marquee-track" aria-hidden="true">
+        <span>{message.repeat(3)}</span>
+        <span>{message.repeat(3)}</span>
+      </div>
+    </div>
+  );
+}
+
 function SectionHeading({ eyebrow, title, description }) {
   return (
     <div className="mb-10 flex flex-col justify-between gap-5 md:mb-14 md:flex-row md:items-end" data-reveal>
@@ -274,7 +294,12 @@ function Work() {
               className="aspect-[1.9/1] w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.025]"
             />
           </a>
-          <article data-reveal>
+          <article
+            data-reveal
+            className="motion-card rounded-xl border border-ink/10 bg-white p-6 shadow-sm sm:p-8"
+            onPointerMove={handleMotionCardPointerMove}
+            onPointerLeave={handleMotionCardPointerLeave}
+          >
             <div className="mb-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-muted">
               <Gamepad2 size={15} className="text-[#829f35]" /> Live project
             </div>
@@ -332,7 +357,9 @@ function PythonProjects() {
           {pythonProjects.map((project) => (
             <article
               key={project.id}
-              className="group flex min-h-[250px] flex-col rounded-sm border border-ink/10 bg-paper p-5 transition-transform duration-300 hover:-translate-y-1 sm:p-6"
+              className="motion-card group flex min-h-[250px] flex-col rounded-xl border border-ink/10 bg-paper p-5 shadow-sm sm:p-6"
+              onPointerMove={handleMotionCardPointerMove}
+              onPointerLeave={handleMotionCardPointerLeave}
               data-reveal
             >
               <div className="flex items-start justify-between">
@@ -523,7 +550,28 @@ function Contact() {
   );
 }
 
+function handleMotionCardPointerMove(event) {
+  if (
+    document.documentElement.dataset.style !== "clean-motion" ||
+    event.pointerType === "touch" ||
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  ) {
+    return;
+  }
+
+  const card = event.currentTarget;
+  const bounds = card.getBoundingClientRect();
+  const x = (event.clientX - bounds.left) / bounds.width - 0.5;
+  const y = (event.clientY - bounds.top) / bounds.height - 0.5;
+  card.style.transform = `perspective(900px) rotateX(${-y * 5}deg) rotateY(${x * 5}deg) translateY(-4px)`;
+}
+
+function handleMotionCardPointerLeave(event) {
+  event.currentTarget.style.transform = "";
+}
+
 export default function App() {
+  const [designStyle, setDesignStyle] = useDesignStyle();
   const requestedRoute = new URLSearchParams(window.location.search).get("route");
   if (requestedRoute) {
     const routeUrl = new URL(requestedRoute, window.location.origin);
@@ -575,16 +623,17 @@ export default function App() {
   if (isGamesPage) {
     return (
       <Suspense fallback={<main className="min-h-screen bg-paper px-5 py-16 text-center text-sm text-muted">Loading games…</main>}>
-        <GamesPage />
+        <GamesPage designStyle={designStyle} setDesignStyle={setDesignStyle} />
       </Suspense>
     );
   }
 
   return (
     <>
-      <Header />
+      <Header designStyle={designStyle} setDesignStyle={setDesignStyle} />
       <main>
         <Hero />
+        <LimeMarquee />
         <Work />
         <AdSenseSlot slotId={import.meta.env.VITE_ADSENSE_HOME_SLOT} className="my-12 sm:my-16" />
         <PythonProjects />

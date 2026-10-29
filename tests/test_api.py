@@ -95,6 +95,17 @@ class GameApiTests(unittest.TestCase):
             "wins": 0,
         }])
 
+    def test_public_dashboard_excludes_recent_activity(self):
+        self.create_player("player-1", "first player")
+        self.create_player("player-2", "second player")
+
+        public_dashboard = self.client.get("/api/dashboard")
+        self.assertEqual(public_dashboard.status_code, 200, public_dashboard.text)
+        self.assertNotIn("recentRecords", public_dashboard.json())
+
+        removed_activity = self.client.get("/api/activity")
+        self.assertEqual(removed_activity.status_code, 405)
+
     def test_dashboard_query_route_is_available_through_api_root(self):
         self.create_player("player-1", "first player")
         response = self.client.get("/api?view=dashboard")
@@ -200,12 +211,21 @@ class GameApiTests(unittest.TestCase):
         self.assertEqual(player["points"], 0)
         self.assertEqual(player["gamesPlayed"], 2)
         self.assertEqual(player["wins"], 1)
-        player_records = [
-            record for record in dashboard["recentRecords"]
-            if record["playerId"] == "player-1"
-        ]
-        self.assertEqual([record["pointsDelta"] for record in player_records], [-10, 10])
-        self.assertEqual([record["pointsAfter"] for record in player_records], [0, 10])
+        connection = sqlite3.connect(self.database_path)
+        try:
+            player_records = connection.execute(
+                """
+                SELECT points_delta, points_after
+                FROM game_records
+                WHERE player_id = ?
+                ORDER BY created_at DESC
+                """,
+                ("player-1",),
+            ).fetchall()
+        finally:
+            connection.close()
+        self.assertEqual([record[0] for record in player_records], [-10, 10])
+        self.assertEqual([record[1] for record in player_records], [0, 10])
 
     def test_start_requires_a_player_profile(self):
         response = self.post_as("player-1", {
@@ -236,8 +256,14 @@ class GameApiTests(unittest.TestCase):
         dashboard = self.client.get("/api/dashboard").json()
         self.assertEqual(dashboard["players"][0]["points"], 0)
         self.assertEqual(dashboard["players"][0]["gamesPlayed"], 1)
-        self.assertEqual(dashboard["recentRecords"][0]["outcome"], "draw")
-        self.assertEqual(dashboard["recentRecords"][0]["pointsDelta"], 0)
+        connection = sqlite3.connect(self.database_path)
+        try:
+            record = connection.execute(
+                "SELECT outcome, points_delta FROM game_records",
+            ).fetchone()
+        finally:
+            connection.close()
+        self.assertEqual(record, ("draw", 0))
 
     def test_missing_authentication_api_key_is_reported(self):
         request = Request({

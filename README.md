@@ -6,6 +6,9 @@
 
 A personal portfolio and small collection of playable browser games. The score API is built in Python and verifies completed game sessions before saving leaderboard results.
 
+The site defaults to **Clean + motion**, with Premium and Khatra styles available
+in the style switcher. Weekly and all-time leaderboards update automatically.
+
 ## Tech stack
 
 - React, Vite, and Tailwind CSS

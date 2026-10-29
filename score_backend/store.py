@@ -178,32 +178,9 @@ class GameStore:
                     ((datetime.now(timezone.utc) - timedelta(days=7)).isoformat(),),
                 )
             ]
-            records = [
-                {
-                    "id": row["id"],
-                    "playerId": row["player_id"],
-                    "playerName": row["player_name"],
-                    "game": row["game"],
-                    "outcome": row["outcome"],
-                    "pointsDelta": row["points_delta"],
-                    "pointsAfter": row["points_after"],
-                    "createdAt": row["created_at"],
-                }
-                for row in self._execute(
-                    connection,
-                    """
-                    SELECT id, player_id, player_name, game, outcome,
-                           points_delta, points_after, created_at
-                    FROM game_records
-                    ORDER BY created_at DESC
-                    LIMIT 8
-                    """
-                )
-            ]
         return {
             "players": players,
             "weeklyPlayers": weekly_players,
-            "recentRecords": records,
         }
 
     def start_game(self, uid: str, game: object, options: object = None) -> str:

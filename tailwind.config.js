@@ -4,10 +4,10 @@ export default {
   theme: {
     extend: {
       colors: {
-        paper: "#f6f5f0",
-        ink: "#20211f",
-        muted: "#777871",
-        accent: "#b5d943",
+        paper: "var(--color-paper)",
+        ink: "var(--color-ink)",
+        muted: "var(--color-muted)",
+        accent: "var(--color-accent)",
       },
       fontFamily: {
         sans: ["DM Sans", "sans-serif"],

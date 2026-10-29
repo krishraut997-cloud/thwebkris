@@ -3,7 +3,7 @@
 The games page uses Firebase Google Authentication only to identify players.
 The Python FastAPI service verifies each Firebase sign-in with Google's public
 Identity Toolkit API, then stores profiles, verified game sessions, scores, and
-the recent-game feed in SQLite locally and persistent Postgres in production. A
+game records in SQLite locally and persistent Postgres in production. A
 Firebase Admin service account and Firestore score writes are not used.
 
 ## Local development
@@ -22,9 +22,10 @@ Firebase Admin service account and Firestore score writes are not used.
 
 SQLite data is saved at `data/game-tracker.sqlite3` by default and is excluded
 from Git. To store it elsewhere, set `GAME_DATABASE_PATH` to an absolute path
-before starting the Python server. The dashboard reads all-time player totals,
-weekly scores from the last seven days, and the latest eight game records from
-the API every five seconds.
+before starting the Python server. The public dashboard reads all-time player
+totals and weekly scores, refreshing every five seconds. Individual game
+records are stored for scorekeeping and are not displayed in a recent-activity
+feed.
 
 ## Production hosting
 
@@ -37,6 +38,9 @@ writes are rejected instead of losing records.
 
 The GitHub Pages workflow points its API requests to the production Vercel
 origin. The API allows requests from `https://krishraut997-cloud.github.io`.
+For Google sign-in, also add `krishraut997-cloud.github.io` (without the
+`/thwebkris` path) under **Firebase Console → Authentication → Settings →
+Authorized domains** for the Firebase project used by the GitHub Pages build.
 For another static-site domain, add the exact origin to
 `SCORE_API_ALLOWED_ORIGINS` in Vercel.
 
@@ -53,7 +57,7 @@ credentials in `VITE_` variables.
   database transaction. Sessions expire after 24 hours and cannot be replayed.
 - The dashboard sorts by points, then wins, games played, and player name.
 - The weekly leaderboard sums verified score changes over the last seven days;
-  recent activity shows the latest completed game records.
+  the dashboard automatically refreshes every five seconds.
 - Local two-player Tic-tac-toe remains playable but is not ranked.
 - New profiles are stored in the Python game database. Existing Firestore
   profiles and scores are not automatically copied; this tracker starts with a
