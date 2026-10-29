@@ -7,6 +7,10 @@
       "destination": "/api?view=dashboard"
     },
     {
+      "source": "/api/activity",
+      "destination": "/api?view=activity"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

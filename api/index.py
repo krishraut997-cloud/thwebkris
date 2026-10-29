@@ -134,8 +134,11 @@ def require_uid(request: Request) -> str:
 @app.get("/")
 @app.get("/api")
 def health_check(request: Request):
-    if request.query_params.get("view") == "dashboard":
+    view = request.query_params.get("view")
+    if view == "dashboard":
         return dashboard()
+    if view == "activity":
+        raise HTTPException(status_code=404, detail="Recent activity is no longer available.")
 
     try:
         get_store()

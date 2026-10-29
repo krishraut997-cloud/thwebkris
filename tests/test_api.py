@@ -106,6 +106,9 @@ class GameApiTests(unittest.TestCase):
         removed_activity = self.client.get("/api/activity")
         self.assertEqual(removed_activity.status_code, 405)
 
+        removed_vercel_activity = self.client.get("/api?view=activity")
+        self.assertEqual(removed_vercel_activity.status_code, 404)
+
     def test_dashboard_query_route_is_available_through_api_root(self):
         self.create_player("player-1", "first player")
         response = self.client.get("/api?view=dashboard")
