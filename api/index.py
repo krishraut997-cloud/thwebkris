@@ -17,6 +17,21 @@ from score_backend.store import GameStore, NameTakenError, ProfileExistsError
 app = FastAPI()
 _store: GameStore | None = None
 DATABASE_ERRORS = (sqlite3.Error, psycopg.Error)
+COURSE_ADMIN_EMAIL = "emeye1911@gmail.com"
+COURSE_PROGRESS_FIELDS = {
+    "completedLessons",
+    "passedExercises",
+    "attempts",
+    "hintsUsed",
+    "firstTryPasses",
+    "earned",
+    "xp",
+    "level",
+    "runs",
+    "activeDays",
+    "visitedLevels",
+    "currentLesson",
+}
 allowed_origins = [
     "https://krishraut997-cloud.github.io",
     *[
@@ -66,7 +81,7 @@ def get_store() -> GameStore:
     return _store
 
 
-def require_uid(request: Request) -> str:
+def require_identity(request: Request) -> dict[str, Any]:
     authorization = request.headers.get("authorization", "")
     scheme, separator, token = authorization.partition(" ")
     if not separator or scheme.lower() != "bearer" or not token.strip():
@@ -129,7 +144,90 @@ def require_uid(request: Request) -> str:
         or not isinstance(users[0].get("localId"), str)
     ):
         raise HTTPException(status_code=401, detail="Your sign-in could not be verified.")
-    return users[0]["localId"]
+    return users[0]
+
+
+def require_uid(request: Request) -> str:
+    return require_identity(request)["localId"]
+
+
+def require_course_admin(request: Request) -> dict[str, Any]:
+    identity = require_identity(request)
+    if (
+        identity.get("emailVerified") is not True
+        or not isinstance(identity.get("email"), str)
+        or identity["email"].lower() != COURSE_ADMIN_EMAIL
+    ):
+        raise HTTPException(status_code=403, detail="Only the course owner can view learner progress.")
+    return identity
+
+
+def validate_course_progress(progress: object) -> dict[str, Any]:
+    if not isinstance(progress, dict) or set(progress) != COURSE_PROGRESS_FIELDS:
+        raise HTTPException(status_code=400, detail="Course progress has an invalid shape.")
+
+    list_limits = {
+        "completedLessons": 36,
+        "firstTryPasses": 72,
+        "earned": 30,
+        "activeDays": 14,
+        "visitedLevels": 4,
+    }
+    for field, limit in list_limits.items():
+        values = progress[field]
+        if (
+            not isinstance(values, list)
+            or len(values) > limit
+            or any(not isinstance(value, str) or not value or len(value) > 120 for value in values)
+        ):
+            raise HTTPException(status_code=400, detail=f"Course progress field '{field}' is invalid.")
+    if any(not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day) for day in progress["activeDays"]):
+        raise HTTPException(status_code=400, detail="Course progress field 'activeDays' is invalid.")
+
+    for field in ("passedExercises", "hintsUsed"):
+        values = progress[field]
+        if (
+            not isinstance(values, dict)
+            or len(values) > 72
+            or any(
+                not isinstance(key, str)
+                or not key
+                or len(key) > 120
+                or value is not True
+                for key, value in values.items()
+            )
+        ):
+            raise HTTPException(status_code=400, detail=f"Course progress field '{field}' is invalid.")
+
+    attempts = progress["attempts"]
+    if (
+        not isinstance(attempts, dict)
+        or len(attempts) > 72
+        or any(
+            not isinstance(key, str)
+            or not key
+            or len(key) > 120
+            or isinstance(value, bool)
+            or not isinstance(value, int)
+            or value < 0
+            or value > 1_000_000
+            for key, value in attempts.items()
+        )
+    ):
+        raise HTTPException(status_code=400, detail="Course progress field 'attempts' is invalid.")
+
+    for field, minimum in (("xp", 0), ("level", 1), ("runs", 0)):
+        value = progress[field]
+        if isinstance(value, bool) or not isinstance(value, int) or value < minimum or value > 1_000_000_000:
+            raise HTTPException(status_code=400, detail=f"Course progress field '{field}' is invalid.")
+
+    if (
+        not isinstance(progress["currentLesson"], str)
+        or not progress["currentLesson"]
+        or len(progress["currentLesson"]) > 120
+    ):
+        raise HTTPException(status_code=400, detail="Course progress field 'currentLesson' is invalid.")
+    return progress
 
 
 def require_visitor_id(visitor_id: object) -> str:
@@ -146,6 +244,10 @@ def health_check(request: Request):
         return dashboard()
     if view == "my-records":
         return player_records(request)
+    if view == "my-course-progress":
+        return my_course_progress(request)
+    if view == "admin-course-progress":
+        return all_course_progress(request)
     if view == "activity":
         raise HTTPException(status_code=404, detail="Recent activity is no longer available.")
 
@@ -194,9 +296,57 @@ def player_records(request: Request):
         ) from error
 
 
+@app.get("/api/course-progress/me")
+def my_course_progress(request: Request):
+    uid = require_uid(request)
+    try:
+        return {"record": get_store().get_course_progress(uid)}
+    except (OSError, *DATABASE_ERRORS) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Could not read your course progress from the Python tracker.",
+        ) from error
+
+
+@app.post("/api/course-progress")
+def save_my_course_progress(request: Request, payload: dict[str, Any]):
+    identity = require_identity(request)
+    uid = identity["localId"]
+    email = identity.get("email")
+    if not isinstance(email, str) or not email:
+        raise HTTPException(status_code=401, detail="Your Google account must have an email address.")
+    progress = validate_course_progress(payload.get("progress"))
+    display_name = identity.get("displayName")
+    if not isinstance(display_name, str):
+        display_name = ""
+    try:
+        record = get_store().save_course_progress(uid, email, display_name[:100], progress)
+        return {"record": record}
+    except (OSError, *DATABASE_ERRORS) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Could not save your course progress to the Python tracker.",
+        ) from error
+
+
+@app.get("/api/admin/course-progress")
+def all_course_progress(request: Request):
+    require_course_admin(request)
+    try:
+        return {"records": get_store().get_all_course_progress()}
+    except (OSError, *DATABASE_ERRORS) as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Could not read learner progress from the Python tracker.",
+        ) from error
+
+
 @app.post("/")
 @app.post("/{path:path}")
 def game_endpoint(request: Request, payload: dict[str, Any]):
+    if request.query_params.get("view") == "course-progress":
+        return save_my_course_progress(request, payload)
+
     operation = payload.get("operation")
 
     if operation == "profile":

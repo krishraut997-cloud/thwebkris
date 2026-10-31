@@ -5,6 +5,69 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isCourseAdmin() {
+      return signedIn()
+        && request.auth.token.email == 'emeye1911@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    function validCourseProgress(userId) {
+      let data = request.resource.data;
+      let progress = data.progress;
+      return data.keys().hasOnly([
+          'uid', 'email', 'displayName', 'progress', 'createdAt', 'updatedAt', 'lastActiveAt'
+        ])
+        && data.uid == userId
+        && data.email == request.auth.token.email
+        && data.displayName is string
+        && data.displayName.size() <= 100
+        && progress is map
+        && progress.keys().hasOnly([
+          'completedLessons', 'passedExercises', 'attempts', 'hintsUsed',
+          'firstTryPasses', 'earned', 'xp', 'level', 'runs', 'activeDays',
+          'visitedLevels', 'currentLesson'
+        ])
+        && progress.completedLessons is list
+        && progress.completedLessons.size() <= 36
+        && progress.passedExercises is map
+        && progress.passedExercises.size() <= 72
+        && progress.attempts is map
+        && progress.attempts.size() <= 72
+        && progress.hintsUsed is map
+        && progress.hintsUsed.size() <= 72
+        && progress.firstTryPasses is list
+        && progress.firstTryPasses.size() <= 72
+        && progress.earned is list
+        && progress.earned.size() <= 30
+        && progress.xp is int
+        && progress.xp >= 0
+        && progress.level is int
+        && progress.level >= 1
+        && progress.runs is int
+        && progress.runs >= 0
+        && progress.activeDays is list
+        && progress.activeDays.size() <= 14
+        && progress.visitedLevels is list
+        && progress.visitedLevels.size() <= 4
+        && progress.currentLesson is string
+        && data.updatedAt == request.time
+        && data.lastActiveAt == request.time;
+    }
+
+    match /courseProgress/{userId} {
+      allow get: if signedIn() && (request.auth.uid == userId || isCourseAdmin());
+      allow list: if isCourseAdmin();
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && validCourseProgress(userId)
+        && request.resource.data.createdAt == request.time;
+      allow update: if signedIn()
+        && request.auth.uid == userId
+        && validCourseProgress(userId)
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if false;
+    }
+
     match /players/{playerId} {
       allow read: if true;
       allow create: if signedIn()

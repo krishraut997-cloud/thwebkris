@@ -52,6 +52,22 @@ class GameApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         return response.json()
 
+    def course_progress(self):
+        return {
+            "completedLessons": ["printing"],
+            "passedExercises": {"hello-world": True},
+            "attempts": {"hello-world": 2},
+            "hintsUsed": {},
+            "firstTryPasses": [],
+            "earned": ["first-steps"],
+            "xp": 25,
+            "level": 1,
+            "runs": 3,
+            "activeDays": ["2026-10-31"],
+            "visitedLevels": ["beginner"],
+            "currentLesson": "printing",
+        }
+
     def load_game_state(self, session_id):
         connection = sqlite3.connect(self.database_path)
         try:
@@ -180,6 +196,119 @@ class GameApiTests(unittest.TestCase):
 
         unauthorized = self.client.get("/api/me/records")
         self.assertEqual(unauthorized.status_code, 400)
+
+    def test_python_tracker_saves_and_reads_private_course_progress(self):
+        identity = {
+            "localId": "learner-1",
+            "email": "learner@example.com",
+            "displayName": "Course Learner",
+            "emailVerified": True,
+        }
+        with patch.object(index, "require_identity", return_value=identity):
+            saved = self.client.post(
+                "/api/course-progress",
+                json={"progress": self.course_progress()},
+                headers={"Authorization": "Bearer verified-token"},
+            )
+        self.assertEqual(saved.status_code, 200, saved.text)
+        first_record = saved.json()["record"]
+        self.assertEqual(first_record["uid"], "learner-1")
+        self.assertEqual(first_record["email"], "learner@example.com")
+        self.assertEqual(first_record["displayName"], "Course Learner")
+        self.assertEqual(first_record["progress"], self.course_progress())
+
+        updated_progress = self.course_progress()
+        updated_progress["completedLessons"].append("variables")
+        with patch.object(index, "require_identity", return_value=identity):
+            updated = self.client.post(
+                "/api?view=course-progress",
+                json={"progress": updated_progress},
+                headers={"Authorization": "Bearer verified-token"},
+            )
+        self.assertEqual(updated.status_code, 200, updated.text)
+        self.assertEqual(updated.json()["record"]["createdAt"], first_record["createdAt"])
+        self.assertNotEqual(updated.json()["record"]["updatedAt"], first_record["updatedAt"])
+
+        with patch.object(index, "require_uid", return_value="learner-1"):
+            own_progress = self.client.get(
+                "/api?view=my-course-progress",
+                headers={"Authorization": "Bearer verified-token"},
+            )
+        self.assertEqual(own_progress.status_code, 200, own_progress.text)
+        self.assertEqual(own_progress.json()["record"]["progress"], updated_progress)
+
+    def test_course_dashboard_requires_verified_admin_identity(self):
+        request = Request({
+            "type": "http",
+            "method": "GET",
+            "path": "/api/admin/course-progress",
+            "headers": [],
+            "query_string": b"",
+        })
+        with patch.object(index, "require_identity", return_value={
+            "localId": "learner-1",
+            "email": "learner@example.com",
+            "emailVerified": True,
+        }):
+            with self.assertRaises(index.HTTPException) as error:
+                index.require_course_admin(request)
+        self.assertEqual(error.exception.status_code, 403)
+
+        with patch.object(index, "require_identity", return_value={
+            "localId": "owner-1",
+            "email": "emeye1911@gmail.com",
+            "emailVerified": False,
+        }):
+            with self.assertRaises(index.HTTPException) as error:
+                index.require_course_admin(request)
+        self.assertEqual(error.exception.status_code, 403)
+
+        learner_identity = {
+            "localId": "learner-1",
+            "email": "learner@example.com",
+            "displayName": "Course Learner",
+            "emailVerified": True,
+        }
+        with patch.object(index, "require_identity", return_value=learner_identity):
+            saved = self.client.post(
+                "/api/course-progress",
+                json={"progress": self.course_progress()},
+                headers={"Authorization": "Bearer verified-token"},
+            )
+        self.assertEqual(saved.status_code, 200, saved.text)
+
+        owner_identity = {
+            "localId": "owner-1",
+            "email": "emeye1911@gmail.com",
+            "emailVerified": True,
+        }
+        with patch.object(index, "require_identity", return_value=learner_identity):
+            unauthorized = self.client.get(
+                "/api?view=admin-course-progress",
+                headers={"Authorization": "Bearer verified-token"},
+            )
+        self.assertEqual(unauthorized.status_code, 403)
+
+        with patch.object(index, "require_identity", return_value=owner_identity):
+            records = self.client.get("/api?view=admin-course-progress")
+        self.assertEqual(records.status_code, 200, records.text)
+        self.assertEqual(len(records.json()["records"]), 1)
+        self.assertEqual(records.json()["records"][0]["uid"], "learner-1")
+
+    def test_course_progress_rejects_malformed_values(self):
+        progress = self.course_progress()
+        progress["xp"] = True
+        with patch.object(index, "require_identity", return_value={
+            "localId": "learner-1",
+            "email": "learner@example.com",
+            "displayName": "Learner",
+        }):
+            response = self.client.post(
+                "/api/course-progress",
+                json={"progress": progress},
+                headers={"Authorization": "Bearer verified-token"},
+            )
+        self.assertEqual(response.status_code, 400)
 
     def test_guest_games_are_verified_tracked_and_not_ranked(self):
         visitor_id = "a" * 32

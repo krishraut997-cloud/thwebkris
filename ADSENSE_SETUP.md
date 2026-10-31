@@ -57,12 +57,25 @@ build base.
    Set `VITE_SITE_ORIGIN` in Vercel if its production domain is not detected
    automatically. If you also use the manual Display ad units, set
    `VITE_ADSENSE_HOME_SLOT` and `VITE_ADSENSE_GAMES_SLOT` to those unit IDs.
+   The Python course header uses `VITE_ADSENSE_COURSE_HEADER_SLOT`, or falls
+   back to `VITE_ADSENSE_HOME_SLOT` when a separate unit is not set. Add the
+   optional course slot as a GitHub Actions repository variable and Vercel
+   environment variable if you create a separate course unit. The course ad
+   uses the same publisher gate as other manual ads and additionally requires
+   `VITE_ADSENSE_COURSE_CONSENT_CONFIGURED=true`. Keep that value false until
+   the consent-management platform is installed and tested on the course entry
+   page.
    Set `VITE_ADSENSE_CONSENT_CONFIGURED=true` only after the CMP has been
    published and installed. For local development, put the values in the
    ignored `.env.local` file.
 4. In AdSense, enable Auto ads for the approved site if you want automatic
    placements. Create responsive Display ad units only if you also want the
-   existing manual portfolio and game placements.
+   existing manual portfolio, game, and course-header placements. If a
+   consent-management platform is used, install its code on the course entry
+   page (`python-course/index.html`) as well as the main entry before enabling
+   ads for the course. Set
+   `VITE_ADSENSE_COURSE_CONSENT_CONFIGURED=true` only after that course-page
+   consent flow is operational.
 5. Redeploy both hosts after setting their variables. Check the AdSense site
    status, verify the `ads.txt` status in AdSense, and confirm the ad units
    appear on the deployed pages. Ad serving may take time after approval.

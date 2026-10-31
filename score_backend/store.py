@@ -85,6 +85,17 @@ class GameStore:
                 );
                 CREATE INDEX IF NOT EXISTS guest_game_records_created_at
                     ON guest_game_records(created_at DESC);
+                CREATE TABLE IF NOT EXISTS course_progress (
+                    uid TEXT PRIMARY KEY,
+                    email TEXT NOT NULL,
+                    display_name TEXT NOT NULL,
+                    progress_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    last_active_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS course_progress_last_active
+                    ON course_progress(last_active_at DESC);
                 """
             if self.is_postgres:
                 for statement in schema.split(";"):
@@ -119,6 +130,72 @@ class GameStore:
     def _begin_write(self, connection) -> None:
         if not self.is_postgres:
             self._execute(connection, "BEGIN IMMEDIATE")
+
+    def save_course_progress(
+        self,
+        uid: str,
+        email: str,
+        display_name: str,
+        progress: dict[str, Any],
+    ) -> dict[str, Any]:
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connection() as connection:
+            self._execute(
+                connection,
+                """
+                INSERT INTO course_progress
+                    (uid, email, display_name, progress_json, created_at,
+                     updated_at, last_active_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(uid) DO UPDATE SET
+                    email = excluded.email,
+                    display_name = excluded.display_name,
+                    progress_json = excluded.progress_json,
+                    updated_at = excluded.updated_at,
+                    last_active_at = excluded.last_active_at
+                """,
+                (uid, email, display_name, json.dumps(progress), now, now, now),
+            )
+        return self.get_course_progress(uid)
+
+    def get_course_progress(self, uid: str) -> dict[str, Any] | None:
+        with self._connection() as connection:
+            row = self._execute(
+                connection,
+                """
+                SELECT uid, email, display_name, progress_json, created_at,
+                       updated_at, last_active_at
+                FROM course_progress
+                WHERE uid = ?
+                """,
+                (uid,),
+            ).fetchone()
+        return self._course_progress_record(row) if row else None
+
+    def get_all_course_progress(self) -> list[dict[str, Any]]:
+        with self._connection() as connection:
+            rows = self._execute(
+                connection,
+                """
+                SELECT uid, email, display_name, progress_json, created_at,
+                       updated_at, last_active_at
+                FROM course_progress
+                ORDER BY last_active_at DESC
+                """,
+            )
+            return [self._course_progress_record(row) for row in rows]
+
+    @staticmethod
+    def _course_progress_record(row) -> dict[str, Any]:
+        return {
+            "uid": row["uid"],
+            "email": row["email"],
+            "displayName": row["display_name"],
+            "progress": json.loads(row["progress_json"]),
+            "createdAt": row["created_at"],
+            "updatedAt": row["updated_at"],
+            "lastActiveAt": row["last_active_at"],
+        }
 
     def create_player(self, uid: str, raw_name: object) -> dict[str, Any]:
         if not isinstance(raw_name, str):

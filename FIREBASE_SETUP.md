@@ -1,10 +1,11 @@
 # Python game tracker setup
 
-The games page uses Firebase Google Authentication only to identify players.
-The Python FastAPI service verifies each Firebase sign-in with Google's public
-Identity Toolkit API, then stores profiles, verified game sessions, scores, and
-game records in SQLite locally and persistent Postgres in production. A
-Firebase Admin service account and Firestore score writes are not used.
+The games page and Python course use Firebase Google Authentication to identify
+users. The Python FastAPI service verifies each sign-in with Google's public
+Identity Toolkit API, then stores player profiles, verified game sessions,
+scores, game records, and signed-in course progress in SQLite locally and
+persistent Postgres in production. The service does not use a Firebase Admin
+service account.
 
 ## Local development
 
@@ -23,9 +24,9 @@ Firebase Admin service account and Firestore score writes are not used.
 SQLite data is saved at `data/game-tracker.sqlite3` by default and is excluded
 from Git. To store it elsewhere, set `GAME_DATABASE_PATH` to an absolute path
 before starting the Python server. The public dashboard reads all-time player
-totals and weekly scores, refreshing every five seconds. Individual game
-records are stored for scorekeeping and are not displayed in a recent-activity
-feed.
+totals and weekly scores, refreshing every 15 seconds while the tab is visible.
+Individual game records are stored for scorekeeping and are not displayed in a
+recent-activity feed.
 
 ## Production hosting
 
@@ -41,8 +42,37 @@ origin. The API allows requests from `https://krishraut997-cloud.github.io`.
 For Google sign-in, also add `krishraut997-cloud.github.io` (without the
 `/thwebkris` path) under **Firebase Console → Authentication → Settings →
 Authorized domains** for the Firebase project used by the GitHub Pages build.
+The Python course at `/python-course/` uses the same Google sign-in and Firebase
+web app settings as the games. Signed-in learners sync their lesson, exercise,
+achievement, XP, and activity-date progress to a private record keyed by their
+Firebase user ID in the Python tracker database.
+The portfolio, games dashboard, and course share the same Firebase sign-in
+session on a given browser and site origin: sign in once in any of them, and
+signing out in any of them signs out across the site. Different hostnames and
+browsers have separate sessions.
+Learners can read and update only their own record through the API. The API
+checks the verified Google account `emeye1911@gmail.com` before returning any
+learner records to the private course dashboard. Guest progress stays in that
+browser and is only migrated to the first Google account that signs in on that
+browser. Separate Google accounts use separate local progress. Existing
+Firestore records are no longer read by the course; learners retain their
+current device-local progress and new course activity syncs to the Python
+tracker.
 For another static-site domain, add the exact origin to
 `SCORE_API_ALLOWED_ORIGINS` in Vercel.
+
+For GitHub Pages deployment, set the four `VITE_FIREBASE_*` repository
+variables under **GitHub → Settings → Secrets and variables → Actions →
+Variables**. The workflow checks these required values without printing them
+and stops before deployment if one is missing. Add the GitHub Pages hostname
+to Firebase's authorized domains as described above.
+
+In Vercel, set `DATABASE_URL` (or `POSTGRES_URL`) for the production API and
+`FIREBASE_API_KEY` for sign-in verification. If the site uses additional
+frontend origins, set `SCORE_API_ALLOWED_ORIGINS` to a comma-separated list of
+exact origins, including scheme and hostname but no path (for example,
+`https://www.example.com`). AdSense repository variables are optional; ads
+remain disabled unless the client ID and consent setting are configured.
 
 The API uses the Firebase web API key (`VITE_FIREBASE_API_KEY`) only to ask
 Google to verify Firebase ID tokens. This is the same public key used by the
@@ -57,8 +87,9 @@ credentials in `VITE_` variables.
   database transaction. Sessions expire after 24 hours and cannot be replayed.
 - The dashboard sorts by points, then wins, games played, and player name.
 - The weekly leaderboard sums verified score changes over the last seven days;
-  the dashboard automatically refreshes every five seconds.
+  the dashboard automatically refreshes every 15 seconds while visible and
+  refreshes when a hidden tab becomes visible again.
 - Local two-player Tic-tac-toe remains playable but is not ranked.
-- New profiles are stored in the Python game database. Existing Firestore
-  profiles and scores are not automatically copied; this tracker starts with a
-  new leaderboard.
+- New profiles and course progress are stored in the Python tracker database.
+- Existing Firestore game profiles and scores are not automatically copied;
+  this tracker starts with a new leaderboard.

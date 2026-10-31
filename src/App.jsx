@@ -12,17 +12,27 @@ import {
   Github,
   Gamepad2,
   Layers3,
+  LogIn,
+  LogOut,
   Mail,
   MessageCircle,
   Menu,
   Palette,
+  UserRound,
   X,
 } from "lucide-react";
 import AdSenseSlot from "./AdSenseSlot.jsx";
+import {
+  isFirebaseConfigured,
+  signInWithGoogle,
+  signOutPlayer,
+  useFirebaseAuth,
+} from "./auth.js";
 
 const GamesPage = lazy(() => import("./GamesPage.jsx"));
 const BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, "");
 const GAMES_PATH = `${BASE_PATH}/games`;
+const PYTHON_COURSE_PATH = `${BASE_PATH}/python-course`;
 
 const CONTACT_LINKS = {
   email: "mailto:tk042333@gmail.com",
@@ -65,8 +75,51 @@ const skillGroups = [
 
 function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authMessage, setAuthMessage] = useState("");
+  const { user, loading: authLoading } = useFirebaseAuth();
 
   const closeMenu = () => setMenuOpen(false);
+  const authenticate = async (action) => {
+    setAuthBusy(true);
+    setAuthMessage("");
+    try {
+      await action();
+      closeMenu();
+    } catch (error) {
+      if (error?.code !== "auth/popup-closed-by-user" && error?.code !== "auth/cancelled-popup-request") {
+        setAuthMessage(error?.code === "auth/unauthorized-domain"
+          ? `Google sign-in is not enabled for ${window.location.hostname}. Add this domain to Firebase Authentication's authorized domains.`
+          : error?.message || "Google sign-in failed. Please try again.");
+      }
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+  const authAction = user ? (
+    <button
+      type="button"
+      onClick={() => authenticate(signOutPlayer)}
+      disabled={authBusy}
+      className="inline-flex min-h-11 items-center gap-2 rounded-full border border-ink/15 px-4 py-2.5 text-[11px] font-semibold transition-colors hover:border-ink hover:bg-ink hover:text-paper disabled:opacity-60"
+      aria-label={`Sign out ${user.email || user.displayName || "account"}`}
+    >
+      <UserRound size={14} />
+      <span className="max-w-32 truncate">{authBusy ? "Signing out…" : user.displayName || user.email || "Account"}</span>
+      <LogOut size={13} />
+    </button>
+  ) : (
+    <button
+      type="button"
+      onClick={() => authenticate(signInWithGoogle)}
+      disabled={!isFirebaseConfigured || authLoading || authBusy}
+      title={!isFirebaseConfigured ? "Google sign-in is not configured." : undefined}
+      className="inline-flex min-h-11 items-center gap-2 rounded-full bg-ink px-4 py-2.5 text-[11px] font-semibold text-white transition-colors hover:bg-[#4a4b41] disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      <LogIn size={14} />
+      {authLoading ? "Checking sign-in…" : authBusy ? "Connecting…" : "Continue with Google"}
+    </button>
+  );
 
   return (
     <header className="relative z-20">
@@ -87,17 +140,21 @@ function Header() {
           <a className="nav-link" href="#work">Work</a>
           <a className="nav-link" href={GAMES_PATH}>Play</a>
           <a className="nav-link" href="#python-projects">Python</a>
+          <a className="nav-link" href={`${PYTHON_COURSE_PATH}/`}>Learn Python</a>
           <a className="nav-link" href="#skills">Skills</a>
           <a className="nav-link" href="#about">About</a>
           <a className="nav-link" href="#contact">Contact</a>
         </div>
 
-        <a
-          href="#contact"
-          className="hidden items-center gap-2 rounded-full border border-ink/15 px-5 py-2.5 text-[12px] font-semibold transition-colors hover:border-ink hover:bg-ink hover:text-paper xl:flex"
-        >
-          Get in touch <ArrowUpRight size={14} strokeWidth={1.8} />
-        </a>
+        <div className="hidden items-center gap-3 xl:flex">
+          {authAction}
+          <a
+            href="#contact"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-ink/15 px-5 py-2.5 text-[12px] font-semibold transition-colors hover:border-ink hover:bg-ink hover:text-paper"
+          >
+            Get in touch <ArrowUpRight size={14} strokeWidth={1.8} />
+          </a>
+        </div>
 
         <button
           type="button"
@@ -113,7 +170,7 @@ function Header() {
       {menuOpen && (
         <div className="absolute left-0 right-0 top-full border-y border-ink/10 bg-paper px-5 py-5 shadow-lg xl:hidden">
           <div className="flex flex-col gap-5">
-            {[["Work", "#work"], ["Play games", GAMES_PATH], ["Python", "#python-projects"], ["Skills", "#skills"], ["About", "#about"], ["Contact", "#contact"]].map(
+            {[["Work", "#work"], ["Play games", GAMES_PATH], ["Python", "#python-projects"], ["Learn Python", `${PYTHON_COURSE_PATH}/`], ["Skills", "#skills"], ["About", "#about"], ["Contact", "#contact"]].map(
               ([label, href]) => (
                 <a
                   key={label}
@@ -132,9 +189,11 @@ function Header() {
             >
               Get in touch <ArrowUpRight size={16} />
             </a>
+            {authAction}
           </div>
         </div>
       )}
+      {authMessage && <p className="px-5 pb-3 text-xs text-red-700 sm:px-10 lg:px-16" role="alert">{authMessage}</p>}
     </header>
   );
 }
@@ -180,12 +239,16 @@ function Hero() {
             Python through practical projects. I enjoy making games and interfaces
             that feel simple, useful, and polished.
           </p>
-          <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3 sm:mt-9">
-            <a href="#work" className="button-primary">
-              View my projects <ArrowDownRight size={16} strokeWidth={1.8} />
+          <div className="mt-7 flex flex-wrap items-center gap-3 sm:mt-9">
+            <a href={GAMES_PATH} className="button-primary">
+              <Gamepad2 size={16} strokeWidth={1.8} />
+              Play games
             </a>
-            <a href="#contact" className="inline-flex min-h-11 items-center text-xs font-medium text-muted hover:text-ink">
-              Say hello <ArrowUpRight className="ml-1 inline" size={13} />
+            <a
+              href={`${PYTHON_COURSE_PATH}/`}
+              className="inline-flex min-h-11 items-center gap-3 rounded-full border border-ink/15 px-[21px] text-xs font-semibold transition-colors hover:border-ink hover:bg-ink hover:text-paper"
+            >
+              Learn Python <ArrowRight size={16} strokeWidth={1.8} />
             </a>
           </div>
         </div>
@@ -334,6 +397,15 @@ const pythonProjects = [
     technologies: ["Python", "FastAPI", "SQLite · PostgreSQL", "unittest"],
     repositoryUrl: "https://github.com/krishraut997-cloud/thwebkris/tree/main/score_backend",
   },
+  {
+    id: "python-course",
+    category: "Python · Interactive course",
+    name: "Python Path",
+    description: "A free, hands-on Python course with guided lessons, runnable exercises, instant feedback, and saved learning progress.",
+    technologies: ["Python", "React", "Pyodide", "CodeMirror"],
+    repositoryUrl: "https://github.com/krishraut997-cloud/thwebkris/tree/main/python-course",
+    courseUrl: `${PYTHON_COURSE_PATH}/`,
+  },
 ];
 
 function PythonProjects() {
@@ -383,6 +455,14 @@ function PythonProjects() {
               >
                 <Github size={15} /> View on GitHub <ExternalLink size={13} />
               </a>
+              {project.courseUrl && (
+                <a
+                  href={project.courseUrl}
+                  className="mt-2 inline-flex min-h-11 w-fit items-center gap-2 text-xs font-semibold transition-colors hover:text-[#71862f]"
+                >
+                  Start learning <ArrowUpRight size={14} />
+                </a>
+              )}
             </article>
           ))}
         </div>

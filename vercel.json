@@ -11,6 +11,18 @@
       "destination": "/api?view=my-records"
     },
     {
+      "source": "/api/course-progress/me",
+      "destination": "/api?view=my-course-progress"
+    },
+    {
+      "source": "/api/admin/course-progress",
+      "destination": "/api?view=admin-course-progress"
+    },
+    {
+      "source": "/api/course-progress",
+      "destination": "/api?view=course-progress"
+    },
+    {
       "source": "/api/activity",
       "destination": "/api?view=activity"
     },

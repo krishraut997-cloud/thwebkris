@@ -66,8 +66,8 @@ export default function AdSenseSlot({ slotId, className = "" }) {
   }
 
   return (
-    <aside className={`mx-auto max-w-[1100px] px-5 sm:px-8 ${className}`} aria-label="Advertisement">
-      <p className="mb-2 text-center text-[9px] uppercase tracking-[0.14em] text-muted">Advertisement</p>
+    <aside className={`adsense-slot mx-auto max-w-[1100px] px-5 sm:px-8 ${className}`} aria-label="Advertisement">
+      <p className="adsense-slot-label mb-2 text-center text-[9px] uppercase tracking-[0.14em] text-muted">Advertisement</p>
       <ins
         ref={adRef}
         className="adsbygoogle"

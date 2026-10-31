@@ -28,6 +28,10 @@ body {
   background: var(--color-accent);
 }
 
+.adsense-slot-label {
+  color: var(--color-muted);
+}
+
 .lime-marquee {
   overflow: hidden;
   border-block: 1px solid rgb(32 33 31 / 8%);

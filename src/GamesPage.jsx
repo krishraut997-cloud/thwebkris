@@ -26,15 +26,17 @@ import {
 import {
   createPlayerProfile,
   getGuestVisitorId,
-  isFirebaseConfigured,
-  listenToAuth,
   listenToGameDashboard,
   listenToPlayerRecords,
-  signInWithGoogle,
-  signOutPlayer,
   startVerifiedGame,
   submitVerifiedGameAction,
 } from "./firebase";
+import {
+  isFirebaseConfigured,
+  signInWithGoogle,
+  signOutPlayer,
+  useFirebaseAuth,
+} from "./auth.js";
 import {
   CONTEXT_UNLISTED_RANK,
   CONTEXT_VOCABULARY_SIZE,
@@ -1416,8 +1418,7 @@ export default function GamesPage() {
     loading: false,
     error: "",
   });
-  const [authUser, setAuthUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const { user: authUser, loading: authLoading } = useFirebaseAuth();
   const [profileSaving, setProfileSaving] = useState(false);
   const [visitorId] = useState(getGuestVisitorId);
   const [trackerStatus, setTrackerStatus] = useState({
@@ -1465,18 +1466,6 @@ export default function GamesPage() {
     }
     canonical.href = pageUrl.href;
   }, [currentGame]);
-
-  useEffect(() => {
-    if (!isFirebaseConfigured) {
-      setAuthLoading(false);
-      return undefined;
-    }
-
-    return listenToAuth((user) => {
-      setAuthUser(user);
-      setAuthLoading(false);
-    });
-  }, []);
 
   useEffect(() => {
     return listenToGameDashboard(

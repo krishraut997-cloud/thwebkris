@@ -1,31 +1,9 @@
-import { getApp, getApps, initializeApp } from "firebase/app";
-import {
-  getAuth,
-  GoogleAuthProvider,
-  onAuthStateChanged,
-  signInWithPopup,
-  signOut,
-} from "firebase/auth";
-
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-};
-
-export const isFirebaseConfigured = Object.values(firebaseConfig).every(Boolean);
-
-let auth;
-
-if (isFirebaseConfigured) {
-  const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-  auth = getAuth(app);
-}
+import { getCurrentFirebaseUser } from "./auth.js";
 
 const scoreApiBase = (import.meta.env.VITE_SCORE_API_URL || "").replace(/\/+$/, "");
 const trackerUnavailableMessage =
   "Cannot reach the Python game tracker. Start it with `npm run dev:score-api` and try again.";
+const gameDataRefreshIntervalMs = 15_000;
 const gameUpdateChannel =
   typeof BroadcastChannel === "undefined"
     ? null
@@ -61,21 +39,6 @@ async function fetchPythonApi(url, options) {
     }
     throw error;
   }
-}
-
-export function listenToAuth(callback) {
-  if (!auth) throw new Error("Firebase is not configured.");
-  return onAuthStateChanged(auth, callback);
-}
-
-export function signInWithGoogle() {
-  if (!auth) throw new Error("Firebase is not configured.");
-  return signInWithPopup(auth, new GoogleAuthProvider());
-}
-
-export function signOutPlayer() {
-  if (!auth) throw new Error("Firebase is not configured.");
-  return signOut(auth);
 }
 
 export function getGuestVisitorId() {
@@ -138,7 +101,9 @@ export function listenToGameDashboard(onDashboard, onError) {
   };
 
   void refresh();
-  const timer = window.setInterval(refresh, 2000);
+  const timer = window.setInterval(() => {
+    if (document.visibilityState === "visible") void refresh();
+  }, gameDataRefreshIntervalMs);
   const unsubscribe = subscribeToGameUpdates(refresh);
   return () => {
     active = false;
@@ -170,7 +135,9 @@ export function listenToPlayerRecords(user, visitorId, onRecords, onError) {
   };
 
   void refresh();
-  const timer = window.setInterval(refresh, 2000);
+  const timer = window.setInterval(() => {
+    if (document.visibilityState === "visible") void refresh();
+  }, gameDataRefreshIntervalMs);
   const unsubscribe = subscribeToGameUpdates(refresh);
   return () => {
     active = false;
@@ -183,7 +150,7 @@ export async function startVerifiedGame(game, options = {}, visitorId, usePlayer
   const result = await requestPythonApi(
     "",
     { operation: "start", game, options, visitorId },
-    usePlayerProfile ? auth?.currentUser : null,
+    usePlayerProfile ? getCurrentFirebaseUser() : null,
   );
   return result.sessionId;
 }
@@ -192,7 +159,7 @@ export function submitVerifiedGameAction(sessionId, action, visitorId, usePlayer
   return requestPythonApi(
     "",
     { operation: "action", sessionId, action, visitorId },
-    usePlayerProfile ? auth?.currentUser : null,
+    usePlayerProfile ? getCurrentFirebaseUser() : null,
   ).then((result) => {
     if (result.outcome) notifyGameRecorded();
     return result;

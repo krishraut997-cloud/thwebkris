@@ -7,11 +7,13 @@
 A personal portfolio and small collection of playable browser games. The Python score API verifies game sessions, keeps guest history private to the browser, and saves signed-in player scores to the leaderboard.
 
 The site uses a clean white design with subtle motion. Weekly and all-time
-leaderboards and completed-game counts refresh every five seconds.
+leaderboards and completed-game counts refresh every 15 seconds while the tab
+is visible.
 
 ## Tech stack
 
 - React, Vite, and Tailwind CSS
+- Interactive Python lessons powered by Pyodide and CodeMirror
 - Python and FastAPI
 - SQLite for local development; PostgreSQL for production
 - Firebase Authentication for optional player profiles
@@ -46,6 +48,13 @@ leaderboards and completed-game counts refresh every five seconds.
    ```powershell
    npm run build
    ```
+
+The interactive Python course is available at `/python-course/` in the portfolio.
+Sign in to sync course progress across devices and use the private learner
+dashboard. Course progress is stored by the authenticated Python tracker in the
+same database as game data; learners can access their own progress and only the
+verified course owner can view the learner dashboard.
+Run `npm test` to validate all course reference solutions.
 
 See [FIREBASE_SETUP.md](./FIREBASE_SETUP.md) for authentication and production database configuration.
 

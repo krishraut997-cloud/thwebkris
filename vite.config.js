@@ -22,6 +22,36 @@ function upsertCanonical(html, url) {
     : html.replace("</head>", `    ${canonical}\n  </head>`);
 }
 
+function addSocialImageMetadata(html) {
+  for (const [key, content] of [
+    ["og:locale", "en_US"],
+    ["og:image:width", "1200"],
+    ["og:image:height", "630"],
+  ]) {
+    html = upsertMeta(html, "property", key, content);
+  }
+  return html;
+}
+
+function addCrawlerFallback(html, title, description, howToPlay) {
+  const escapeHtml = (value) => value.replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[character]);
+  const instructions = howToPlay
+    ? `<h2>How to play</h2><p>${escapeHtml(howToPlay)}</p>`
+    : "";
+  const fallback = `<main><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p>${instructions}</main>`;
+  const root = /<div id="root">\s*<\/div>/;
+  if (!root.test(html)) {
+    throw new Error("Could not find the empty app root for crawler-readable page content.");
+  }
+  return html.replace(root, `<div id="root">${fallback}</div>`);
+}
+
 function upsertAdSenseScript(html, publisherId) {
   const script = `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${publisherId}" crossorigin="anonymous"></script>`;
   const pattern = /<script\b(?=[^>]*\bsrc=["']https:\/\/pagead2\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js[^"']*["'])[^>]*>\s*<\/script>/i;
@@ -37,8 +67,10 @@ function createPage(template, {
   url,
   image,
   imageAlt,
+  howToPlay,
   publisherId,
   adsEnabled,
+  noIndex,
 }) {
   let html = String(template).replace(
     /<title>[\s\S]*?<\/title>/i,
@@ -62,6 +94,12 @@ function createPage(template, {
     html = upsertMeta(html, attribute, key, content);
   }
 
+  html = addSocialImageMetadata(html);
+  html = addCrawlerFallback(html, title, description, howToPlay);
+  if (noIndex) {
+    html = upsertMeta(html, "name", "robots", "noindex, nofollow");
+  }
+
   if (adsEnabled) {
     html = upsertAdSenseScript(html, publisherId);
   }
@@ -69,7 +107,7 @@ function createPage(template, {
   return upsertCanonical(html, url);
 }
 
-function gamePageHtml({ adsEnabled, base, publisherId, siteOrigin }) {
+function gamePageHtml({ adsEnabled, base, noIndex, publisherId, siteOrigin }) {
   const publicFile = (name) => readFileSync(resolve(process.cwd(), "public", name), "utf8");
 
   return {
@@ -92,13 +130,38 @@ function gamePageHtml({ adsEnabled, base, publisherId, siteOrigin }) {
         ]) {
           homeHtml = upsertMeta(homeHtml, attribute, key, content);
         }
+        homeHtml = addSocialImageMetadata(homeHtml);
+        if (noIndex) {
+          homeHtml = upsertMeta(homeHtml, "name", "robots", "noindex, nofollow");
+        }
         if (adsEnabled) {
           homeHtml = upsertAdSenseScript(homeHtml, publisherId);
         }
         indexPage.source = upsertCanonical(homeHtml, siteBaseUrl);
 
+        const pythonCoursePage = bundle["python-course/index.html"];
+        if (pythonCoursePage?.type === "asset") {
+          let courseHtml = upsertMeta(
+            String(pythonCoursePage.source),
+            "name",
+            "google-adsense-account",
+            publisherId,
+          );
+          if (noIndex) {
+            courseHtml = upsertMeta(courseHtml, "name", "robots", "noindex, nofollow");
+          }
+          pythonCoursePage.source = upsertCanonical(
+            courseHtml,
+            `${siteBaseUrl}python-course/`,
+          );
+        }
+
         for (const pageName of ["about.html", "contact.html", "privacy-policy.html", "terms.html"]) {
           let html = upsertMeta(publicFile(pageName), "name", "google-adsense-account", publisherId);
+          html = addSocialImageMetadata(html);
+          if (noIndex) {
+            html = upsertMeta(html, "name", "robots", "noindex, nofollow");
+          }
           if (adsEnabled) {
             html = upsertAdSenseScript(html, publisherId);
           }
@@ -136,6 +199,7 @@ function gamePageHtml({ adsEnabled, base, publisherId, siteOrigin }) {
             slug: "",
             image: "game-cards/game-platform.png",
             imageAlt: "Krish Raut's browser game collection and Python score platform",
+            howToPlay: "",
           },
           ...gamePages.map((game) => ({
             fileName: `games/${game.slug}/index.html`,
@@ -145,6 +209,7 @@ function gamePageHtml({ adsEnabled, base, publisherId, siteOrigin }) {
             slug: `${game.slug}/`,
             image: game.shareImage,
             imageAlt: `${game.title} browser game preview`,
+            howToPlay: game.howToPlay,
           })),
         ];
 
@@ -160,8 +225,10 @@ function gamePageHtml({ adsEnabled, base, publisherId, siteOrigin }) {
               url,
               image: `${siteOrigin}${base}${page.image}`,
               imageAlt: page.imageAlt,
+              howToPlay: page.howToPlay,
               publisherId,
               adsEnabled,
+              noIndex,
             }),
           });
         }
@@ -186,6 +253,7 @@ export default defineConfig(({ mode }) => {
   const adsEnabled =
     Boolean(environment.VITE_ADSENSE_CLIENT) &&
     environment.VITE_ADSENSE_CONSENT_CONFIGURED === "true";
+  const noIndex = Boolean(environment.VERCEL);
 
   if (!/^https:\/\/[^/]+$/.test(siteOrigin)) {
     throw new Error("VITE_SITE_ORIGIN must be an HTTPS origin without a path.");
@@ -196,8 +264,16 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    plugins: [react(), gamePageHtml({ adsEnabled, base, publisherId, siteOrigin })],
+    plugins: [react(), gamePageHtml({ adsEnabled, base, noIndex, publisherId, siteOrigin })],
     base,
+    build: {
+      rollupOptions: {
+        input: {
+          portfolio: resolve(process.cwd(), "index.html"),
+          pythonCourse: resolve(process.cwd(), "python-course/index.html"),
+        },
+      },
+    },
     server: {
       proxy: {
         "/api": "http://127.0.0.1:8000",
